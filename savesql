@@ -12,9 +12,12 @@ Public Sub WorkSuiteSave_SQL(Optional LiveListened As Integer, Optional LiveList
     On Error GoTo WorkSuiteSave_Local_Error
 
     With Forms("frm_Bucket")
-          
-        If Forms("frm_EndofCall").chkTrainingMode = -1 Then
+
+        If DetectTrainingMode Then
             qSQL = "INSERT INTO dbo_tbl_SalesDataTraining "
+            
+        ElseIf DetectTestingMode Then
+            qSQL = "INSERT INTO tbl_SalesData "
             
         Else
             qSQL = "INSERT INTO dbo_tbl_SalesData "
@@ -227,38 +230,41 @@ Public Sub WorkSuiteSave_SQL(Optional LiveListened As Integer, Optional LiveList
         
         End If
 
-        qSQL = qSQL & "42, 0, 0, 0, " 'Old HABIT fields, setting to 0 as we don't capture anymore
+        qSQL = qSQL & "42, 0, 0, 0, 0, 0," 'Old HABIT fields, setting to 0 as we don't capture anymore
         'Addon, Email, Ebill, LandlineNo, MObileNo, DoB
 
-      'Options for DD Joint acccounts and other ac holder permission
-      'these are going ionto the fields for Mobile and DOB which are not currently in use
-        qSQL = qSQL & .optDDJoint & ", " & .optDDPermission & ", "
-
         'SalesChannel
-        If Forms("frm_EndofCall").chkTrainingMode = -1 Then
+        If DetectTrainingMode Then
             qSQL = qSQL & "33,"
             
-        ElseIf InStr(1, GetScript, "COS") > 0 Then
-        
-            If IsWinback Then
-                qSQL = qSQL & "22,"
+        Else
+            
+            If InStr(1, GetScript, "COS") > 0 Then
+            
+                If IsWinback Then
+                    qSQL = qSQL & "22,"
+                    
+                ElseIf Left(GetScript, 2) = "MS" Then
+                    qSQL = qSQL & "11, "
+                    
+                ElseIf Left(GetScript, 3) = "SSE" Or GetScript = "COSCom" Then
+                    qSQL = qSQL & "9, "
+                    
+                End If
                 
-            ElseIf Left(GetScript, 2) = "MS" Then
-                qSQL = qSQL & "11, "
+            ElseIf InStr(1, GetScript, "SPC") > 0 Then
+                qSQL = qSQL & "13, "
                 
-            ElseIf Left(GetScript, 3) = "SSE" Or GetScript = "COSCom" Then
-                qSQL = qSQL & "9, "
+            ElseIf Left(GetScript, 2) = "HM" Then
+                qSQL = qSQL & "14, "
+                
+            ElseIf Left(GetScript, 2) = "PG" Then
+                qSQL = qSQL & "23, "
+                
+            Else
+                qSQL = qSQL & "0, "
                 
             End If
-            
-        ElseIf InStr(1, GetScript, "SPC") > 0 Then
-            qSQL = qSQL & "13, "
-            
-        ElseIf Left(GetScript, 2) = "HM" Then
-            qSQL = qSQL & "14, "
-            
-        ElseIf Left(GetScript, 2) = "PG" Then
-            qSQL = qSQL & "23, "
             
         End If
         
@@ -266,15 +272,14 @@ Public Sub WorkSuiteSave_SQL(Optional LiveListened As Integer, Optional LiveList
         If InStr(1, GetScript, "COS") Then
             
             If IsWinback Then
-                        
-            If Forms("frm_Main").tglInOut = -1 Then
-            qSQL = qSQL & "15, "
-                                
-            Else
-            qSQL = qSQL & "14, "
-                                
-            End If
-
+            
+                If Forms("frm_Main").tglInOut = -1 Then
+                    qSQL = qSQL & "15, "
+                    
+                Else
+                    qSQL = qSQL & "14, "
+                    
+                End If
                 
             Else
                 qSQL = qSQL & "13, "
@@ -365,6 +370,7 @@ Public Sub WorkSuiteSave_SQL(Optional LiveListened As Integer, Optional LiveList
             Case "SSE Southern Electric": qSQL = qSQL & "7, " 'SupplyBrand
             Case "SSE Swalec": qSQL = qSQL & "5, " 'SupplyBrand
             Case "M&S Energy": qSQL = qSQL & "3, " 'SupplyBrand
+            Case Else: qSQL = qSQL & "4, "
             
         End Select
         
