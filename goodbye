@@ -1,0 +1,139 @@
+Public Sub ChooseWhichGoodbye()
+
+   On Error GoTo ChooseWhichGoodbye_Error
+
+    With Forms("frm_Bucket").subScript.Form
+    
+        If GetScript = "HMOutOnly" Or GetScript = "PGOutOnly" Then
+            .tabClose.Pages(4).SetFocus
+            
+        ElseIf InStr(1, GetScript, "Deemed") > 0 Then
+            .tabClose.Pages(3).SetFocus
+    
+        ElseIf Left(GetScript, 2) = "HM" Or Left(GetScript, 2) = "PG" Then
+            
+            If Len(Forms("frm_Bucket").txtEmail) > 0 Then
+                .tabClose.Pages(0).SetFocus
+                .lblWhatNext.Visible = False
+                .lblCOSPPM.Visible = False
+                .lblCOSTransfer.Visible = False
+                .optMarketing.Visible = True
+                .lblSatnav.Visible = False
+                .lblRewards.Visible = False
+                .lblVulnerable.Visible = False
+                
+            Else
+                .tabClose.Pages(0).SetFocus
+                .lblWhatNext.Visible = False
+                .lblCOSPPM.Visible = False
+                .lblCOSTransfer.Visible = False
+                .optMarketing.Visible = False
+                .lblSatnav.Visible = False
+                .lblRewards.Visible = True
+                .lblVulnerable.Visible = True
+                
+            End If
+                        
+        ElseIf Right(GetScript, 3) = "COS" Then
+            .tabClose.Pages(0).SetFocus
+            .lblWhatNext.Visible = True
+            .lblCOSTransfer.Visible = True
+            
+            If IsElecPPM Or IsGasPPM Then .lblCOSPPM.Visible = True Else .lblCOSPPM.Visible = False
+                        
+            If Len(Forms("frm_Bucket").txtEmail) > 0 Then
+                .optMarketing.Visible = True
+                .lblRewards.Visible = False
+                .lblVulnerable.Visible = False
+                  
+            Else
+                .optMarketing.Visible = False
+                
+                If GetBrand <> "M&S Energy" Then .lblRewards.Visible = True Else .lblRewards.Visible = False
+                
+                .lblVulnerable.Visible = True
+
+            End If
+
+        ElseIf InStr(1, GetScript, "SPC") > 0 Then
+            .tabClose.Pages(0).SetFocus
+            .lblWhatNext.Visible = True
+            .lblCOSTransfer.Visible = False
+            .lblCOSPPM.Visible = False
+            .lblVulnerable.Visible = True
+            
+            .optMarketing.Visible = False
+            If GetBrand <> "M&S Energy" Then .lblSatnav.Visible = True Else .lblSatnav.Visible = False
+                    
+        ElseIf GetScript = "HomeServices" Then
+            .tabClose.Pages(0).SetFocus
+            .lblWhatNextHS.Visible = True
+            .lblCOSTransfer.Visible = False
+
+
+            If Len(Forms("frm_bucket").txtEmail) > 0 Then
+                .optMarketing.Visible = True
+
+            Else
+                .lblVulnerable.Visible = True
+
+            End If
+            
+        ElseIf GetScript = "NewCon" Then
+            .tabClose.Pages(0).SetFocus
+            .lblWhatNext.Visible = True
+            
+            .lblCOSTransfer.Visible = False
+            .lblCOSPPM.Visible = False
+            
+            If Len(Forms("frm_bucket").txtEmail) > 0 Then
+                .optMarketing.Visible = True
+
+            Else
+                .lblVulnerable.Visible = True
+
+            End If
+
+        ElseIf GetScript = "COSCom" Then
+          'Sale was energy only - handle close in same manner as standardCOS sale
+            If Not IsShield And Not IsWiring Then
+                .tabClose.Pages(0).SetFocus
+                .lblWhatNext.Visible = True
+                .lblCOSTransfer.Visible = True
+                .lblCOSComWhatNext.Visible = False
+                
+          'Product sold on call
+            Else
+                .tabClose.Pages(0).SetFocus
+                .lblCOSComWhatNext.Visible = True
+                .lblWhatNext.Visible = False
+                .lblCOSTransfer.Visible = False
+                
+            End If
+            
+            If IsElecPPM Or IsGasPPM Then .lblCOSPPM.Visible = True Else .lblCOSPPM.Visible = False
+            
+            If GetBrand <> "M&S Energy" And Len(Forms("frm_Bucket").txtEmail) > 0 Then
+                    .optMarketing.Visible = True
+                    .lblRewards.Visible = False
+                    .lblVulnerable.Visible = False
+            
+            Else
+                .optMarketing.Visible = False
+                .lblRewards.Visible = True
+                .lblVulnerable.Visible = True
+
+            End If
+            
+        End If
+               
+   End With
+
+   On Error GoTo 0
+   Exit Sub
+
+ChooseWhichGoodbye_Error:
+
+    LogError Err.Number, Err.Description, "ChooseWhichGoodbye (Form_frm_Close)", Erl
+
+End Sub
