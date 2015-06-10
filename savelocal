@@ -1,5 +1,6 @@
 Public Sub WorkSuiteSave_Local(Optional LiveListened As Integer, Optional LiveListener As String, Optional TurretNumber As String, Optional CallStartTime As String, _
-    Optional ProjRef As String, Optional TelNo As String)
+    Optional ProjRef As String, Optional TelNo As String, Optional NCElec As Integer, Optional NCGas As Integer, _
+    Optional HSShield As Integer, Optional HSWiring As Integer)
 'test code to log COS sales in copy of Work Suite tbl_SalesData
 'need to define SQL string to feed into stored procedure in WS - USS should be able to provide most of the data
 'and we'll set defaults for others
@@ -13,7 +14,12 @@ Public Sub WorkSuiteSave_Local(Optional LiveListened As Integer, Optional LiveLi
     Dim qdf As String
      
    On Error GoTo WorkSuiteSave_Local_Error
-
+   
+    If IsMissing(NCElec) Or IsNull(NCElec) Then NCElec = 0
+    If IsMissing(NCGas) Or IsNull(NCGas) Then NCGas = 0
+    If IsMissing(HSShield) Or IsNull(HSShield) Then HSShield = 0
+    If IsMissing(HSWiring) Or IsNull(HSWiring) Then HSWiring = 0
+   
   With Forms("frm_Bucket")
     
       '(below line to be used in live Db - in test we're writing to local table)
@@ -38,7 +44,7 @@ Public Sub WorkSuiteSave_Local(Optional LiveListened As Integer, Optional LiveLi
       qdf = qdf & "'" & Format(Now, "hh:mm:ss") & "', " 'TimeofSale
       qdf = qdf & "'" & .txtTitle & " " & .txtName & " " & .txtSurname & "', " 'CustomerSurname
       
-      If InStr(1, GetScript, "InOnly") > 0 Or InStr(1, GetScript, "InOut") > 0 Then
+      If InStr(1, GetScript, "InOnly") > 0 Or InStr(1, GetScript, "InOut") > 0 Or GetScript = "HMDeemedIn" Then
           qdf = qdf & "'" & .txtMoveInPostCode & "', " 'PostCode
           qdf = qdf & "'" & .txtMoveInHouseNum & "', " 'HouseRef
 
@@ -79,24 +85,28 @@ Public Sub WorkSuiteSave_Local(Optional LiveListened As Integer, Optional LiveLi
                   qdf = qdf & "'COT and COS', "
                   
               End If
-                  
-          End If
+              
+            ElseIf GetScript = "NewCon" Then
+                qdf = qdf & "'NewConn',"
+                        
+            End If
+            
+            If InStr(1, GetScript, "HMDeemed", vbTextCompare) > 0 Then
+                qdf = qdf & "'Standard', " 'ElecTariff
+                
+            Else
+                qdf = qdf & WrapString(.txtETariff) & ", " 'ElecTariff
+                
+            End If
+            
+            Select Case .txtEPay
+                Case "Monthly Direct Debit": qdf = qdf & "1, "
+                Case "Quarterly Variable Direct Debit": qdf = qdf & "2, "
+                Case "Quarterly Bill": qdf = qdf & "3, "
+                Case "Pay As You Go": qdf = qdf & "4, "
+                Case Else: qdf = qdf & "3, "
 
-          qdf = qdf & "'" & .txtETariff & "', " 'ElecTariff
-
-          If .txtEPay = "Monthly Direct Debit" Then 'ElecPaymentType
-              qdf = qdf & "1, "
-          
-          ElseIf .txtEPay = "Quarterly Variable Direct Debit" Then
-              qdf = qdf & "2, "
-          
-          ElseIf .txtEPay = "Quarterly Bill" Then
-              qdf = qdf & "3, "
-          
-          ElseIf .txtEPay = "Pay As You Go" Then
-              qdf = qdf & "4, "
-          
-          End If
+            End Select
 
           qdf = qdf & "0, " 'ElecRead
 
@@ -135,24 +145,28 @@ Public Sub WorkSuiteSave_Local(Optional LiveListened As Integer, Optional LiveLi
                   qdf = qdf & "'COT and COS', "
                         
               End If
+              
+            ElseIf GetScript = "NewCon" Then
+                qdf = qdf & "'NewConn',"
+                        
+            End If
 
-          End If
+            If InStr(1, GetScript, "HMDeemed", vbTextCompare) > 0 Then
+                qdf = qdf & "'Standard', " 'ElecTariff
+                
+            Else
+                qdf = qdf & WrapString(.txtGTariff) & ", " 'ElecTariff
+                
+            End If
       
-          qdf = qdf & "'" & .txtGTariff & "', " 'GasTariff
-      
-          If .txtGPay = "Monthly Direct Debit" Then 'GasPaymentType
-              qdf = qdf & "1, "
-          
-          ElseIf .txtGPay = "Quarterly Variable Direct Debit" Then
-              qdf = qdf & "2, "
-      
-          ElseIf .txtGPay = "Quarterly Bill" Then
-              qdf = qdf & "3, "
-      
-          ElseIf .txtGPay = "Pay As You Go" Then
-              qdf = qdf & "4, "
-      
-          End If
+            Select Case .txtGPay
+                Case "Monthly Direct Debit": qdf = qdf & "1, "
+                Case "Quarterly Variable Direct Debit": qdf = qdf & "2, "
+                Case "Quarterly Bill": qdf = qdf & "3, "
+                Case "Pay As You Go": qdf = qdf & "4, "
+                Case Else: qdf = qdf & "3, "
+
+            End Select
       
           qdf = qdf & False & ", " 'GasRead
       
@@ -217,9 +231,32 @@ Public Sub WorkSuiteSave_Local(Optional LiveListened As Integer, Optional LiveLi
           qdf = qdf & "0, "
       
       End If
+      
+        'USS marker (uses addon field)
+        Select Case GetScript
+            Case "COSCom": qdf = qdf & "39, "
+            Case "COSComVixen": qdf = qdf & "47, "
+            Case "EbicoCOS": qdf = qdf & "45, "
+            Case "HMCOSIn": qdf = qdf & "40, "
+            Case "HMCOSOut": qdf = qdf & "42, "
+            Case "HMInOnly": qdf = qdf & "9, "
+            Case "HMInOut": qdf = qdf & "10, "
+            Case "HomeServices": qdf = qdf & "7, "
+            Case "MSCOS": qdf = qdf & "12, "
+            Case "MSSPC": qdf = qdf & "15, "
+            Case "NewCon": qdf = qdf & "32, "
+            Case "PGInOnly": qdf = qdf & "21, "
+            Case "PGInOut": qdf = qdf & "25, "
+            Case "SPC": qdf = qdf & "3, "
+            Case "SSECOS": qdf = qdf & "1, "
+            Case "HMDeemedIn": qdf = qdf & "14, "
+            Case "HMDeemedOut": qdf = qdf & "13, "
+            Case Else: qdf = qdf & "2, "
+            
+        End Select
 
-      qdf = qdf & "0, 0, 0, 0, 0, 0, " 'Old HABIT fields, setting to 0 as we don't capture anymore
-      'Addon, Email, Ebill, LandlineNo, MObileNo, DoB
+      qdf = qdf & "0, 0, 0, 0, 0, " 'Old HABIT fields, setting to 0 as we don't capture anymore
+      ' Email, Ebill, LandlineNo, MObileNo, DoB
 
       If InStr(1, GetScript, "COS") > 0 Then
       
@@ -238,10 +275,23 @@ Public Sub WorkSuiteSave_Local(Optional LiveListened As Integer, Optional LiveLi
           qdf = qdf & "13, "
           
       ElseIf Left(GetScript, 2) = "HM" Then
-          qdf = qdf & "14, "
+      
+            If InStr(1, GetScript, "Deemed", vbTextCompare) > 0 Then
+                qdf = qdf & "24, "
+            
+            Else
+                qdf = qdf & "14, "
+                
+            End If
           
-        ElseIf Left(GetScript, 2) = "PG" Then
-            qdf = qdf & "23, "
+      ElseIf Left(GetScript, 2) = "PG" Then
+          qdf = qdf & "23, "
+          
+        ElseIf GetScript = "NewCon" Then
+            qdf = qdf & "8, "
+            
+        ElseIf GetScript = "HomeServices" Then
+            qdf = qdf & "26, "
           
       End If
       
@@ -334,13 +384,15 @@ Public Sub WorkSuiteSave_Local(Optional LiveListened As Integer, Optional LiveLi
           Case "SSE Southern Electric": qdf = qdf & "7, " 'SupplyBrand
           Case "SSE Swalec": qdf = qdf & "5, " 'SupplyBrand
           Case "M&S Energy": qdf = qdf & "3, " 'SupplyBrand
-          
+          Case "Ebico": qdf = qdf & "10, " 'SupplyBrand
+          Case Else: qdf = qdf & "4, "
+                    
       End Select
       
         Select Case GetScript
-            Case "HMInOnly", "PGInOnly"
+            Case "HMInOnly", "PGInOnly", "HMDeemedIn"
                 qdf = qdf & "1, "
-            Case "HMInOut", "PGInOut"
+            Case "HMInOut", "PGInOut", "HMDeemedOut"
                 qdf = qdf & "2, "
             Case "HMOutOnly", "HMOutOnly"
                 qdf = qdf & "3, "
@@ -354,11 +406,39 @@ Public Sub WorkSuiteSave_Local(Optional LiveListened As Integer, Optional LiveLi
       qdf = qdf & "''," 'TalkTariff
       qdf = qdf & "''," 'BroadbandTypeofSale
       qdf = qdf & "''," 'BroadbandTariff
-      qdf = qdf & "''," 'ShieldTypeOFSale
-      qdf = qdf & "''," 'ShieldTariff
-      qdf = qdf & "''," 'WiringTypeofSale
-      qdf = qdf & "''," 'WiringTariff
+      
+        If GetScript = "HomeServices" Or GetScript = "COSCom" Then
+            
+            If IsShield Then
+                qdf = qdf & "'Shield',"  'ShieldTypeOFSale
+                qdf = qdf & WrapString(.txtSTariff) & ","  'ShieldTariff
+                
+            Else
+                qdf = qdf & "' ',"  'ShieldTypeOFSale
+                qdf = qdf & "' ',"  'ShieldTariff
+            
+            End If
+            
+            If IsWiring Then
+                qdf = qdf & "'Wiring',"  'WiringTypeofSale
+                qdf = qdf & WrapString(.txtWTariff) & ","  'WiringTariff
+        
+            Else
+                qdf = qdf & "' ',"  'WiringTypeofSale
+                qdf = qdf & "' ',"  'WiringTariff
+            
+            End If
+            
+        Else
+            qdf = qdf & "' ',"  'ShieldTypeOFSale
+            qdf = qdf & "' ',"  'ShieldTariff
+            qdf = qdf & "' ',"  'WiringTypeofSale
+            qdf = qdf & "' ',"  'WiringTariff
+            
+        End If
+
       qdf = qdf & "0, " 'MarketingConsent
+      
       If .optMarkCon = 1 Then 'EmailMarketingConsent
           qdf = qdf & "1, "
       
@@ -367,8 +447,15 @@ Public Sub WorkSuiteSave_Local(Optional LiveListened As Integer, Optional LiveLi
       
       End If
 
-      qdf = qdf & "0, " 'NumberofShieldSales
-      qdf = qdf & "0, " 'NUmberofWiringSales
+        If GetScript = "HomeServices" Then
+              qdf = qdf & HSShield & ", " & HSWiring & ", "
+        
+        Else
+            qdf = qdf & "0, " 'NumberofShieldSales
+            qdf = qdf & "0, " 'NUmberofWiringSales
+          
+        End If
+
       qdf = qdf & "0, " 'NumberoftalkSales
       qdf = qdf & "0, " 'NumberofBroadbandSales
       qdf = qdf & "'" & .txtEmail & "', " 'EConsentAddress
