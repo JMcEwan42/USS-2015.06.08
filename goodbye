@@ -48,9 +48,7 @@ Public Sub ChooseWhichGoodbye()
                   
             Else
                 .optMarketing.Visible = False
-                
-                If GetBrand <> "M&S Energy" Then .lblRewards.Visible = True Else .lblRewards.Visible = False
-                
+                .lblRewards.Visible = True
                 .lblVulnerable.Visible = True
 
             End If
@@ -83,6 +81,8 @@ Public Sub ChooseWhichGoodbye()
             .tabClose.Pages(0).SetFocus
             .lblWhatNext.Visible = True
             
+
+            
             .lblCOSTransfer.Visible = False
             .lblCOSPPM.Visible = False
             
@@ -94,7 +94,7 @@ Public Sub ChooseWhichGoodbye()
 
             End If
 
-        ElseIf GetScript = "COSCom" Then
+        ElseIf GetScript = "COSCom" Or GetScript = "COSComVixen" Then
           'Sale was energy only - handle close in same manner as standardCOS sale
             If Not IsShield And Not IsWiring Then
                 .tabClose.Pages(0).SetFocus
