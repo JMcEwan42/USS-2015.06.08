@@ -1,0 +1,488 @@
+Public Sub WorkSuiteSave_Local(Optional LiveListened As Integer, Optional LiveListener As String, Optional TurretNumber As String, Optional CallStartTime As String, _
+    Optional ProjRef As String, Optional TelNo As String, Optional NCElec As Integer, Optional NCGas As Integer, _
+    Optional HSShield As Integer, Optional HSWiring As Integer)
+'test code to log COS sales in copy of Work Suite tbl_SalesData
+'need to define SQL string to feed into stored procedure in WS - USS should be able to provide most of the data
+'and we'll set defaults for others
+
+'Prototype version is COS only. Lots of default values
+'code will eventually need to adapt to current scripttype and feed in correct data
+
+    Dim Result As Integer
+    Dim SaveSQL As Integer
+    'Dim qdf As QueryDef
+    Dim qdf As String
+     
+   On Error GoTo WorkSuiteSave_Local_Error
+   
+    If IsMissing(NCElec) Or IsNull(NCElec) Then NCElec = 0
+    If IsMissing(NCGas) Or IsNull(NCGas) Then NCGas = 0
+    If IsMissing(HSShield) Or IsNull(HSShield) Then HSShield = 0
+    If IsMissing(HSWiring) Or IsNull(HSWiring) Then HSWiring = 0
+
+  With Forms("frm_Bucket")
+    
+      '(below line to be used in live Db - in test we're writing to local table)
+      'qdf = "EXEC [dbo].[InsertSale] @AdvisorPayroll = '" & Environ("USERNAME") & "', "
+      
+      'customer details
+      qdf = "INSERT INTO tbl_SalesData ("
+      qdf = qdf & "AdvisorPayroll, DateofSale, TimeofSale, CustomerSurname, PostCode, HouseRef, "
+      qdf = qdf & "ElecSale, ElecTypeofSale, ElecTariff, ElecPaymentType, ElecRead, "
+      qdf = qdf & "GasSale, GasTypeofSale, GasTariff, GasPaymentType, GasRead, "
+      qdf = qdf & "ProductSale, Talk, Broadband, Shield, Wiring, SPC, Addon, Email, Ebill, LandlineNo, MobileNo, DOB, "
+      qdf = qdf & "SalesChannel, SubChannel, TelephoneNumber, CallStartTime, LiveListened, LiveListenerName, TurretNumber, "
+      qdf = qdf & "WeblinkStatus, WeblinkFailed, ProjectionReference, DateToAuditBy, MoveDate, SSENonSSE, SupplyBrand, "
+      qdf = qdf & "COTType, LandlordCall, TalkTypeofSale, TalkTariff, BroadbandTypeofSale, BroadbandTariff, "
+      qdf = qdf & "ShieldTypeofSale, ShieldTariff, WiringTypeofSale, WiringTariff, MarketingConsent, EmailMarketingConsent, "
+      qdf = qdf & "NumberofShieldSales, NumberofWiringSales, NumberofTalkSales, NumberofBroadbandSales, EConsentAddress, "
+      qdf = qdf & "TalkPaymentMethod, BroadbandPaymentMethod, ShieldPaymentMethod, WiringPaymentMethod) "
+      qdf = qdf & "VALUES ("
+      
+      qdf = qdf & "'" & GetCurrentUser & "', " 'AdvisorPayroll
+      qdf = qdf & CDbl(Date) & ", " 'DateofSale
+      qdf = qdf & "'" & Format(Now, "hh:mm:ss") & "', " 'TimeofSale
+      qdf = qdf & "'" & .txtTitle & " " & .txtName & " " & .txtSurname & "', " 'CustomerSurname
+      
+      If InStr(1, GetScript, "InOnly") > 0 Or InStr(1, GetScript, "InOut") > 0 Or GetScript = "HMDeemedIn" Then
+          qdf = qdf & "'" & .txtMoveInPostCode & "', " 'PostCode
+          qdf = qdf & "'" & .txtMoveInHouseNum & "', " 'HouseRef
+
+      Else
+          qdf = qdf & "'" & .txtPostCode & "', "
+          qdf = qdf & "'" & .txtHouseNum & "', "
+
+      End If
+
+      'electric energy sales
+      If IsElec Then
+          qdf = qdf & "1," 'ElecSale
+      
+          'Type of sale will change depending on scripttype
+          If InStr(1, GetScript, "SPC") > 0 Then
+              qdf = qdf & "'SPC', " 'ElecTypeofSale
+              
+          ElseIf InStr(1, GetScript, "COS") > 0 Then
+          
+              If IsESPC Then
+                  qdf = qdf & "'SPC', " 'ElecTypeofSale
+    
+              'cos sales only -  exotic meters need to be logged as CS sale.
+              ElseIf .txtEConfig = "General Domestic" Or .txtEConfig = "Economy 7" Then
+                  qdf = qdf & "'MASUS', " 'ElecTypeofSale
+          
+              Else
+                  qdf = qdf & "'CS', "
+                              
+              End If
+                  
+          ElseIf Left(GetScript, 2) = "HM" Or Left(GetScript, 2) = "PG" Then
+              
+              If .optEOnSupply = 1 Then
+                  qdf = qdf & "'COT', "
+                  
+              Else
+                  qdf = qdf & "'COT and COS', "
+                  
+              End If
+                  
+            ElseIf GetScript = "NewCon" Then
+                qdf = qdf & "'NewConn',"
+                        
+            End If
+            
+            If InStr(1, GetScript, "HMDeemed", vbTextCompare) > 0 Then
+                qdf = qdf & "'Standard', " 'ElecTariff
+                
+            Else
+                qdf = qdf & WrapString(.txtETariff) & ", " 'ElecTariff
+                
+            End If
+            
+            Select Case .txtEPay
+                Case "Monthly Direct Debit": qdf = qdf & "1, "
+                Case "Quarterly Variable Direct Debit": qdf = qdf & "2, "
+                Case "Quarterly Bill": qdf = qdf & "3, "
+                Case "Pay As You Go": qdf = qdf & "4, "
+                Case Else: qdf = qdf & "3, "
+
+            End Select
+
+          qdf = qdf & "0, " 'ElecRead
+
+      Else
+          qdf = qdf & "0," 'ElecSale
+          qdf = qdf & "' ', " 'ElecTypeofSale
+          qdf = qdf & "'" & .txtETariff & "', " 'ElecTariff
+          qdf = qdf & "0, " 'ElecPaymentType
+          qdf = qdf & "0, " 'ElecRead
+
+      End If
+
+      'gas energy sales
+      If IsGas Then
+          qdf = qdf & "1, " 'GasSale
+      
+          If InStr(1, GetScript, "SPC") > 0 Then
+              qdf = qdf & "'SPC', " 'GasTypeofSale
+
+          ElseIf InStr(1, GetScript, "COS") > 0 Then
+          
+              If IsGSPC Then
+                  qdf = qdf & "'SPC', " 'GasTypeofSale
+              
+              Else
+                 qdf = qdf & "'MASUS', " 'GasTypeofSale
+                 
+              End If
+              
+          ElseIf Left(GetScript, 2) = "HM" Or Left(GetScript, 2) = "PG" Then
+                    
+              If .optGOnSupply = 1 Then
+                  qdf = qdf & "'COT', "
+                        
+              Else
+                  qdf = qdf & "'COT and COS', "
+                        
+              End If
+
+            ElseIf GetScript = "NewCon" Then
+                qdf = qdf & "'NewConn',"
+                        
+            End If
+      
+            If InStr(1, GetScript, "HMDeemed", vbTextCompare) > 0 Then
+                qdf = qdf & "'Standard', " 'GasTariff
+                
+            Else
+                qdf = qdf & WrapString(.txtGTariff) & ", " 'GasTariff
+                
+            End If
+      
+            Select Case .txtGPay
+                Case "Monthly Direct Debit": qdf = qdf & "1, "
+                Case "Quarterly Variable Direct Debit": qdf = qdf & "2, "
+                Case "Quarterly Bill": qdf = qdf & "3, "
+                Case "Pay As You Go": qdf = qdf & "4, "
+                Case Else: qdf = qdf & "3, "
+
+            End Select
+      
+          qdf = qdf & 0 & ", " 'GasRead
+      
+      Else
+          qdf = qdf & "0, " 'GasSale
+          qdf = qdf & "' ', " 'GasTypeofSale
+          qdf = qdf & "'" & .txtGTariff & "', " 'GasTariff
+          qdf = qdf & "0, " 'GasPaymentType
+          qdf = qdf & "0, " 'GasRead
+      
+      End If
+
+      If IsTalk Or IsBroadband Or IsShield Or IsWiring Then
+          qdf = qdf & "1, " 'ProductSale
+          
+      Else
+          qdf = qdf & "0, "
+      
+      End If
+      
+      'talk
+      If IsTalk Then 'Talk
+          qdf = qdf & "1, "
+      
+      Else
+          qdf = qdf & "0, "
+      
+      End If
+
+      'broadband
+      If IsBroadband Then 'BroadBand
+          qdf = qdf & "1, "
+      
+      Else
+          qdf = qdf & "0, "
+      
+      End If
+      
+      'shield
+      If IsShield Then 'Shield
+          qdf = qdf & "1, "
+      
+      Else
+          qdf = qdf & "0, "
+      
+      End If
+    
+      'wiring
+      If IsWiring Then 'Wiring
+          qdf = qdf & "1, "
+      
+      Else
+          qdf = qdf & "0, "
+      
+      End If
+
+      'SPC marker
+      If InStr(1, GetScript, "SPC") > 0 Then 'SPC
+          qdf = qdf & "1, "
+      
+      Else
+          qdf = qdf & "0, "
+      
+      End If
+
+        'USS marker (uses addon field)
+        Select Case GetScript
+            Case "COSCom": qdf = qdf & "39, "
+            Case "COSComVixen": qdf = qdf & "47, "
+            Case "EbicoCOS": qdf = qdf & "45, "
+            Case "HMCOSIn": qdf = qdf & "40, "
+            Case "HMCOSOut": qdf = qdf & "42, "
+            Case "HMInOnly": qdf = qdf & "9, "
+            Case "HMInOut": qdf = qdf & "10, "
+            Case "HomeServices": qdf = qdf & "7, "
+            Case "MSCOS": qdf = qdf & "12, "
+            Case "MSSPC": qdf = qdf & "15, "
+            Case "NewCon": qdf = qdf & "32, "
+            Case "PGInOnly": qdf = qdf & "21, "
+            Case "PGInOut": qdf = qdf & "25, "
+            Case "SPC": qdf = qdf & "3, "
+            Case "SSECOS": qdf = qdf & "1, "
+            Case "HMDeemedIn": qdf = qdf & "14, "
+            Case "HMDeemedOut": qdf = qdf & "13, "
+            Case Else: qdf = qdf & "2, "
+            
+        End Select
+
+      qdf = qdf & "0, 0, 0, 0, 0, " 'Old HABIT fields, setting to 0 as we don't capture anymore
+      ' Email, Ebill, LandlineNo, MObileNo, DoB
+
+      If InStr(1, GetScript, "COS") > 0 Then
+      
+          If IsWinback Then
+              qdf = qdf & "22, "
+              
+          ElseIf Left(GetScript, 2) = "MS" Then
+              qdf = qdf & "11, "
+              
+          ElseIf Left(GetScript, 3) = "SSE" Then
+              qdf = qdf & "9, "
+              
+          End If
+          
+      ElseIf InStr(1, GetScript, "SPC") > 0 Then
+          qdf = qdf & "13, "
+          
+      ElseIf Left(GetScript, 2) = "HM" Then
+      
+            If InStr(1, GetScript, "Deemed", vbTextCompare) > 0 Then
+                qdf = qdf & "24, "
+            
+            Else
+                qdf = qdf & "14, "
+                
+            End If
+          
+        ElseIf Left(GetScript, 2) = "PG" Then
+            qdf = qdf & "23, "
+            
+        ElseIf GetScript = "NewCon" Then
+            qdf = qdf & "8, "
+            
+        ElseIf GetScript = "HomeServices" Then
+            qdf = qdf & "26, "
+          
+      End If
+      
+      If InStr(1, GetScript, "COS") Then
+          
+          If IsWinback Then
+              qdf = qdf & ",14 "
+              
+          Else
+              qdf = qdf & "13, " 'SubChannel
+              
+          End If
+          
+      Else
+          qdf = qdf & "13, " 'SubChannel
+          
+      End If
+      
+      If IsMissing(TelNo) Or TelNo = "" Or IsNull(TelNo) Then
+          qdf = qdf & "' ', " 'telephone number
+          
+      Else
+          qdf = qdf & "'" & TelNo & "', " 'telephone number
+          
+      End If
+      
+      If IsMissing(CallStartTime) Or CallStartTime = "" Or IsNull(CallStartTime) Then
+          qdf = qdf & "#" & Format(Now, "hh:mm:ss") & "#, " 'CallStartTime
+          
+      Else
+          qdf = qdf & "#" & Format(CallStartTime, "hh:mm:ss") & "#, "
+          
+      End If
+      
+      If IsMissing(LiveListened) Or LiveListened = 0 Or IsNull(LiveListened) Then
+          qdf = qdf & "0, " 'LiveListened
+          
+      Else
+          qdf = qdf & LiveListened & ", "
+          
+      End If
+      
+      If IsMissing(LiveListener) Or LiveListener = "" Or IsNull(LiveListener) Then
+          qdf = qdf & "'None', " 'LiveListenerName
+          
+      Else
+          qdf = qdf & "'" & LiveListener & "', "
+          
+      End If
+      
+      If IsMissing(TurretNumber) Or TurretNumber = "" Or IsNull(TurretNumber) Then
+          qdf = qdf & "'12345', " 'TurretNumber
+          
+      Else
+          qdf = qdf & "'" & TurretNumber & "', "
+          
+      End If
+                  
+      qdf = qdf & "2, 1, " 'We don't capture this anymore so set to Not Sent and Refused Online
+      
+      qdf = qdf & "'" & ProjRef & "', " 'ProjectionReference
+      qdf = qdf & Wrap(GetNextWorkingDay(Date)) & ", " 'DateToAuditBy
+      
+      If (Left(GetScript, 2) = "HM" Or Left(GetScript, 2) = "PG") And Len(.txtMoveInDate) > 0 Then
+          qdf = qdf & CDbl(CDate(.txtMoveInDate)) & ", " 'MoveDate
+          
+      Else
+          qdf = qdf & "0, " 'MoveDate
+          
+      End If
+      
+      If Left(GetScript, 2) = "HM" Or Left(GetScript, 2) = "PG" Then
+          
+          If .optEOnSupply = 1 Or .optGOnSupply = 1 Then
+              qdf = qdf & "1, " 'SSENonSSE
+              
+          Else
+              qdf = qdf & "2, " 'SSENonSSE
+              
+          End If
+          
+      Else
+          qdf = qdf & "9, " 'SSENonSSE
+          
+      End If
+      
+      Select Case .txtBrand
+          Case "SSE Scottish Hydro": qdf = qdf & "6, " 'SupplyBrand
+          Case "SSE": qdf = qdf & "5, " 'SupplyBrand
+          Case "SSE Southern Electric": qdf = qdf & "7, " 'SupplyBrand
+          Case "SSE Swalec": qdf = qdf & "5, " 'SupplyBrand
+          Case "M&S Energy": qdf = qdf & "3, " 'SupplyBrand
+          Case "Ebico": qdf = qdf & "10, " 'SupplyBrand
+          Case Else: qdf = qdf & "4, "
+                    
+      End Select
+      
+      'cot type
+      Select Case GetScript
+          Case "HMInOnly", "PGInOnly", "HMDeemedIn"
+              qdf = qdf & "1, "
+          Case "HMInOut", "PGInOut", "HMDeemedOut"
+              qdf = qdf & "2, "
+          Case "HMOutOnly", "HMOutOnly"
+              qdf = qdf & "3, "
+          Case Else
+              qdf = qdf & "0, "
+                
+      End Select
+
+      qdf = qdf & "0, " 'LandlordCall
+      qdf = qdf & "''," 'TalkTypeoFSale
+      qdf = qdf & "''," 'TalkTariff
+      qdf = qdf & "''," 'BroadbandTypeofSale
+      qdf = qdf & "''," 'BroadbandTariff
+
+        If GetScript = "HomeServices" Or GetScript = "COSCom" Then
+            
+            If IsShield Then
+                qdf = qdf & "'Shield',"  'ShieldTypeOFSale
+                qdf = qdf & WrapString(.txtSTariff) & ","  'ShieldTariff
+                
+            Else
+                qdf = qdf & "' ',"  'ShieldTypeOFSale
+                qdf = qdf & "' ',"  'ShieldTariff
+            
+            End If
+            
+            If IsWiring Then
+                qdf = qdf & "'Wiring',"  'WiringTypeofSale
+                qdf = qdf & WrapString(.txtWTariff) & ","  'WiringTariff
+        
+            Else
+                qdf = qdf & "' ',"  'WiringTypeofSale
+                qdf = qdf & "' ',"  'WiringTariff
+            
+            End If
+            
+        Else
+            qdf = qdf & "' ',"  'ShieldTypeOFSale
+            qdf = qdf & "' ',"  'ShieldTariff
+            qdf = qdf & "' ',"  'WiringTypeofSale
+            qdf = qdf & "' ',"  'WiringTariff
+            
+        End If
+        
+      qdf = qdf & "0, " 'MarketingConsent
+
+      If .optMarkCon = 1 Then 'EmailMarketingConsent
+          qdf = qdf & "1, "
+      
+      Else
+          qdf = qdf & "0, "
+      
+      End If
+
+        If GetScript = "HomeServices" Then
+            
+            If IsShield Then HSShield = 1 Else HSShield = 0
+            If IsWiring Then HSWiring = 1 Else HSWiring = 0
+            
+              qdf = qdf & HSShield & ", " & HSWiring & ", "
+        
+        Else
+            qdf = qdf & "0, " 'NumberofShieldSales
+            qdf = qdf & "0, " 'NUmberofWiringSales
+          
+        End If
+        
+      qdf = qdf & "0, " 'NumberoftalkSales
+      qdf = qdf & "0, " 'NumberofBroadbandSales
+      qdf = qdf & "'" & .txtEmail & "', " 'EConsentAddress
+      qdf = qdf & "'" & .txtTPay & "', " 'TalkPaymentMethod
+      qdf = qdf & "'" & .txtBPay & "', " 'BroadbandPaymentMethod
+      qdf = qdf & "'" & .txtSPayMeth & "', " 'ShieldPaymentMethod
+      qdf = qdf & "'" & .txtWPaymeth & "') " 'WiringPaymentmethod
+
+  End With
+
+  'QDF.Connect = DLookup("Setting3", "dbo_tbl_USS_Settings")
+  
+  DoCmd.SetWarnings False
+  DoCmd.RunSQL qdf
+
+  DoCmd.SetWarnings True
+
+   On Error GoTo 0
+   Exit Sub
+
+WorkSuiteSave_Local_Error:
+
+    LogError Err.Number, Err.Description, "WorkSuiteSave_Local (basUSS3)", Erl
+
+End Sub
