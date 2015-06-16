@@ -1,0 +1,232 @@
+Private Sub btnSave_Click()
+
+    On Error GoTo btnSave_Click_Error
+    
+    Dim LiveListened As Integer, LiveListener As String, TurretNumber As String, CallStartTime As String, ProjRef As String, TelNo As String
+    Dim Result As Integer, NCElec As Integer, NCGas As Integer, HSS As Integer, HSW As Integer
+        
+    With Me
+
+        If ValidateSale And Not SaleSaved Then
+            
+            'validate form
+            If .chkCoPilot = -1 And (.txtCoPilotName = "" Or IsNull(.txtCoPilotName)) Then
+                ShowPopup "Missing information", "Enter the name of the co-pilot, live listener or Check & Repairer"
+                Exit Sub
+                
+            ElseIf (.txtTel = "" Or IsNull(.txtTel)) Or (.txtTurretNumber = "" Or IsNull(.txtTurretNumber)) Or (.txtCallStartTime = "" Or IsNull(.txtCallStartTime)) Then
+                ShowPopup "Missing call details", "You must enter the customer's telephone number, your turret number and call start time before you can save your sale"
+                Exit Sub
+                                    
+            ElseIf (GetScript = "NewCon" Or (Left(GetScript, 2) = "HM" And InStr(1, GetScript, "Deemed") = 0 And _
+                Forms("frm_Bucket").optEOnSupply = 1 Or Forms("frm_Bucket").optGOnSupply = 1)) And _
+                (.txtSiteID = "" Or IsNull(.txtSiteID) Or Len(.txtSiteID) = 9 And .txtPersonalProjection = "" Or IsNull(.txtPersonalProjection)) Then
+                ShowPopup "Missing call details", "Enter the Site ID and/or portal reference before saving"
+                Exit Sub
+                
+            End If
+            
+            If GetScript = "NewCon" And ((IsElec And .txtNewConElec >= 10) Or (IsGas And .txtNewConGas >= 10)) Then
+                Result = MsgBox("Press OK to confirm that the customer wishes " & .txtNewConElec & " electricity and " & .txtNewConGas & " gas meters installed/registered", vbOKCancel + vbQuestion, "Confirm sales figures")
+                
+                If Result <> 1 Then
+                    Exit Sub
+                    
+                Else
+                    NCElec = .txtNewConElec
+                    NCGas = .txtNewConGas
+                    HSS = 0
+                    HSW = 0
+                    
+                End If
+                
+            ElseIf GetScript = "HomeServices" And ((IsShield And .txtHSS >= 10) Or (IsWiring And .txtHSW >= 10)) Then
+                Result = MsgBox("Press OK to confirm that the customer wishes " & .txtHSS & " Shield products and " & .txtHSW & " electrical wiring products", vbOKCancel + vbQuestion, "Confirm sales figures")
+                
+                If Result <> 1 Then
+                    Exit Sub
+                    
+                Else
+                    NCElec = 0
+                    NCGas = 0
+                    HSS = .txtHSS
+                    HSW = .txtHSW
+                    
+                End If
+                            
+            Else
+                NCElec = 0
+                NCGas = 0
+                HSS = 0
+                HSW = 0
+                
+            End If
+            
+            LiveListened = .chkCoPilot
+            
+            If LiveListened = -1 Then LiveListener = .txtCoPilotName Else LiveListener = "None"
+            
+            TurretNumber = .txtTurretNumber
+            CallStartTime = .txtCallStartTime
+            ProjRef = .txtPersonalProjection
+            TelNo = .txtTel
+                        
+            WorkSuiteSave_SQL LiveListened, LiveListener, TurretNumber, CallStartTime, ProjRef, TelNo ', NCElec, NCGas, HSS, HSW 'Live SQL server table
+
+            Forms("frm_Bucket").btnClose.SetFocus
+            Forms("frm_Bucket").btnSave.Visible = False
+            Forms("frm_Bucket").imgSave.Visible = False
+            SaleSaved = True
+            DoCmd.Close acForm, "frm_EndofCall"
+            
+            If DetectTrainingMode Then
+                ShowPopup "Sale saved to Training table", "Your sale has been successfully saved to the Customer Service Work Suite TRAINING table. " & _
+                    vbNewLine & vbNewLine & "Use the 'Close' button below to close your USS window. "
+                
+            ElseIf DetectTestingMode Then
+                ShowPopup "Sale saved to Test table", "Your sale has been successfully saved to the USS TESTING table. " & _
+                    vbNewLine & vbNewLine & "Use the 'Close' button below to close your USS window. "
+                
+            Else
+                ShowPopup "Sale saved", "Your sale has been successfully saved to the Customer Service Work Suite. Use the 'Close' button below to close your USS window. "
+                
+            End If
+            
+        Else
+            ShowPopup "Problem saving sale", "This sale cannot be saved to the Customer Service Work Suite. Please ensure you have completed all fields and try again." & _
+                vbNewLine & vbNewLine & "If the problem persists, load the sale manually using the Customer Service Work Suite sales logger"
+        
+        End If
+    
+    End With
+
+   On Error GoTo 0
+   Exit Sub
+
+btnSave_Click_Error:
+
+    LogError Err.Number, Err.Description, "btnSave_Click (Form_frm_EndofCall)", Erl
+    
+End Sub
+
+Private Sub Form_Open(Cancel As Integer)
+
+   On Error GoTo Form_Open_Error
+
+    Dim InPilot As Boolean
+
+    With Me
+    
+        .chkCoPilot = 0
+        .txtCoPilotName = ""
+        .txtCoPilotName.Visible = False
+        .txtTel = ""
+        .txtTurretNumber = ""
+        .txtCallStartTime = ""
+        .txtPersonalProjection = ""
+        .txtSiteID = ""
+
+        If Left(GetScript, 2) = "HM" Then
+        
+            If InStr(1, GetScript, "Deemed") > 0 Then
+                .txtSiteID.Visible = False
+                .txtPersonalProjection.Visible = False
+            
+            ElseIf Forms("frm_Bucket").optEOnSupply = 1 Or Forms("frm_Bucket").optGOnSupply = 1 Then
+                .txtSiteID.Visible = True
+                .txtPersonalProjection.Visible = False
+                
+            Else
+                .txtSiteID.Visible = False
+                .txtPersonalProjection.Visible = False
+            
+            End If
+
+        ElseIf GetScript = "NewCon" Or (Left(GetScript, 2) = "PG" And (Forms("frm_Bucket").optEOnSupply = 1 Or Forms("frm_Bucket").optGOnSupply = 1)) Then
+            .txtSiteID.Visible = False
+            .txtPersonalProjection.Visible = True
+                        
+        Else
+            .txtSiteID.Visible = False
+            .txtPersonalProjection.Visible = False
+            
+        End If
+        
+        If GetScript = "NewCon" Then
+            .lblNC.Visible = True
+            .txtNewConElec.Visible = True
+            .txtNewConGas.Visible = True
+            
+            If IsElec Then
+                .txtNewConElec = 1
+                .txtNewConElec.Enabled = True
+                
+            Else
+                .txtNewConElec.Enabled = False
+                .txtNewConElec = 0
+                
+            End If
+            
+            If IsGas Then
+                .txtNewConGas.Enabled = True
+                .txtNewConGas = 1
+                
+            Else
+                .txtNewConGas.Enabled = False
+                .txtNewConGas = 0
+                
+            End If
+            
+        Else
+            .lblNC.Visible = False
+            .txtNewConElec.Visible = False
+            .txtNewConGas.Visible = False
+            .txtNewConElec = 0
+            .txtNewConGas = 0
+            
+        End If
+        
+        If GetScript = "HomeServices" Or IsShieldUpsell Then
+            .lblHS.Visible = True
+            .txtHSS.Visible = True
+            .txtHSW.Visible = True
+            
+            If IsShield Then
+                .txtHSS = 1
+                .txtHSS.Enabled = True
+                
+            Else
+                .txtHSS = 0
+                .txtHSS.Enabled = False
+                
+            End If
+            
+            If IsWiring Then
+                .txtHSW = 1
+                .txtHSW.Enabled = True
+            
+            Else
+                .txtHSW = 0
+                .txtHSW.Enabled = False
+                
+            End If
+            
+        Else
+            .lblHS.Visible = False
+            .txtHSS.Visible = False
+            .txtHSW.Visible = False
+            .txtHSS = 0
+            .txtHSW = 0
+            
+        End If
+        
+    End With
+
+   On Error GoTo 0
+   Exit Sub
+
+Form_Open_Error:
+
+    LogError Err.Number, Err.Description, "Form_Open (Form_frm_EndofCall)", Erl
+
+End Sub
