@@ -179,7 +179,6 @@ Sub NextHS()
                     If .subScript.Form.optSystem = 1 Or _
                         (.subScript.Form.optSystem = 2 And .subScript.Form.cmbSelectSystem = "Non-Standard excluding Hot Water Cylinder") Then
                         .subScript.Form.optCover.Visible = True
-                        If GetScript = "COSCom" Then .subScript.Form.tglService.Visible = False Else .subScript.Form.tglService.Visible = True
                         .subScript.Form.optOptions.Visible = False
                         .subScript.Form.lblFullHeatingCover.Visible = False
 
@@ -272,6 +271,10 @@ Sub NextHS()
                         
                         .txtSection3 = BuildString
                         .subScript.SourceObject = "frm_Close"
+
+                        If SaleSaved = False Then .btnSave.Visible = True Else .btnSave.Visible = False
+                        If SaleSaved = False Then .imgSave.Visible = True Else .imgSave.Visible = False
+
                         GoTo LeaveNow
                     
                     End If
@@ -346,6 +349,10 @@ Sub NextHS()
                         ShuffleHeaders 4, 5
                         .txtSection4 = BuildString
                         .subScript.SourceObject = "frm_Close"
+
+                        If SaleSaved = False Then .btnSave.Visible = True Else .btnSave.Visible = False
+                        If SaleSaved = False Then .imgSave.Visible = True Else .imgSave.Visible = False
+
                         GoTo LeaveNow
 
                     End If
@@ -418,6 +425,10 @@ Sub NextHS()
                         ShuffleHeaders 4, 5
                         .txtSection4 = BuildString
                         .subScript.SourceObject = "frm_Close"
+
+                        If SaleSaved = False Then .btnSave.Visible = True Else .btnSave.Visible = False
+                        If SaleSaved = False Then .imgSave.Visible = True Else .imgSave.Visible = False
+
                         GoTo LeaveNow
                                           
                     End If
