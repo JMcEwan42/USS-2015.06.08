@@ -1,0 +1,486 @@
+Sub NextHS()
+'next button code for v3 hs scripts
+
+    Dim Hdr As String, Msg As String
+    Dim tRS As DAO.Recordset, TQdef As QueryDef, TSQL As String
+    Dim TCount As Integer, lCount As Integer
+
+   On Error GoTo NextHS_Error
+
+    With Forms("frm_Bucket")
+    
+'******************************************************************
+        Select Case .subScript.SourceObject
+        
+'******************************************************************
+'SECTION 1
+'WELCOME PAGE
+            Case "frm_Welcome" 'section 1
+                
+                'validate welcome page
+                If Not ValidateHSWelcome Then GoTo LeaveNow
+                
+                'it's valid, so let's pass all the data onto frm_Bucket
+                .txtSection1 = BuildString
+                
+                Select Case .subScript.Form.optBrand
+                    Case 1: .txtBrand = "SSE Scottish Hydro"
+                    Case 2: .txtBrand = "SSE Southern Electric"
+                    Case 3: .txtBrand = "SSE Swalec"
+                    Case 4: .txtBrand = "SSE"
+                    Case 5: .txtBrand = "M&S Energy"
+                    Case 6: .txtBrand = "Ebico"
+                    
+                End Select
+                
+                .txtTitle = .subScript.Form.cmbTitle
+                .txtName = .subScript.Form.txtFirstName
+                .txtSurname = .subScript.Form.txtSurname
+                
+                ShuffleHeaders 1, 2
+                
+                'load the next form
+                .subScript.SourceObject = "frm_DPAPlus"
+                GoTo LeaveNow
+                
+'******************************************************************
+'SECTION 2
+'DATA PROTECTION
+            Case "frm_DPAPlus"
+            
+                'validate DPA section
+                'as this section (and others later on too) has more than one page on the tab control,
+                'there are separate validation functions for each page.
+                'call them ONLY when the appropriate tab control page is active
+                If .subScript.Form.tabDPA = 0 Then
+
+                    If Not ValidateDPA_1 Then GoTo LeaveNow
+                                                    
+                    If .subScript.Form.optCheckRespHS = 1 Then
+                        .txtSection2 = BuildString
+                        'copy form data onto frm_bucket for future reference
+                        .txtHouseNum = .subScript.Form.txtHouseNum
+                        .txtAddress = .subScript.Form.txtAdd1
+                        .txtTown = .subScript.Form.txtTown
+                        .txtPostCode = .subScript.Form.txtPostCode
+                        .txtDob = .subScript.Form.txtDob
+                        .txtTel = .subScript.Form.txtTel
+                        .txtEmail = .subScript.Form.txtEmail
+                        .txtMob = .subScript.Form.txtMobile
+                        
+                        ShuffleHeaders 2, 3
+                        
+                        .subScript.SourceObject = "frm_ProductHS"
+                        GoTo LeaveNow
+                    
+                    ElseIf .subScript.Form.optCheckRespHS = 2 And .subScript.Form.optSpeakTo = 1 Then
+                        .txtSection2 = BuildString
+                        .subScript.Form.optCheckResp2.Visible = True
+                        .subScript.Form.lblCheckResp2HS.Visible = True
+                        .subScript.Form.lblCheckResp.Visible = False
+                        .subScript.Form.tabDPA.Pages(1).SetFocus
+                        GoTo LeaveNow
+                                            
+                    ElseIf .subScript.Form.optCallback = 1 Then
+                        ShowPopup "Call completed", "Cannot continue without speaking to the account holder"
+                        GoTo LeaveNow
+                        
+                    ElseIf .subScript.Form.optCallback = 2 Then
+                        ShowPopup "Cannot continue", "Cannot continue without speaking to the account holder"
+                        GoTo LeaveNow
+                                                
+                    End If
+                                                                
+                ElseIf .subScript.Form.tabDPA = 1 Then
+                
+                    If Not ValidateDPA_2 Then GoTo LeaveNow
+                    
+                    .txtSection2 = BuildString
+                    
+                    If .subScript.Form.optCheckResp2 = 2 Then
+                        ShowPopup "Cannot continue", "Cannot continue if customer does not agree"
+                        GoTo LeaveNow
+                        
+                    ElseIf .subScript.Form.optGivePerm = 2 Then
+                        ShowPopup "Cannot continue", "Cannot continue if customer does not agree"
+                        GoTo LeaveNow
+                        
+                    Else
+                        'copy form data onto frm_bucket for future reference
+                        .txtTitle = .subScript.Form.cmbTitle2
+                        .txtName = .subScript.Form.txtFirstName2
+                        .txtSurname = .subScript.Form.txtSurname2
+                        .txtHouseNum = .subScript.Form.txtHouseNum2
+                        .txtAddress = .subScript.Form.txtAdd2
+                        .txtTown = .subScript.Form.txtTown2
+                        .txtPostCode = .subScript.Form.txtPostcode2
+                        .txtDob = .subScript.Form.txtDob2
+                                                
+                        .txt3rdRelation = .subScript.Form.txtRelationship
+                        .txt3rdDuration = .subScript.Form.cmb3rdDuration
+                                                                            
+                        .txtTel = .subScript.Form.txtTel2
+                        .txtEmail = .subScript.Form.txtEmail2
+                        .txtMob = .subScript.Form.txtMobile2
+                        
+                        ShuffleHeaders 2, 3
+                                            
+                        .subScript.SourceObject = "frm_ProductHS"
+                        GoTo LeaveNow
+                        
+                    End If
+                    
+                End If
+                        
+'******************************************************************
+'SECTION 3
+'PRODUCT
+            Case "frm_ProductHS"
+            
+                If .subScript.Form.tabProduct = 0 Then  'Product Overview
+                
+                    If Not ValidateProductHS_1 Then GoTo LeaveNow
+                    
+                        .txtSection3 = BuildString
+                        
+                        If IsHomeOwner And .subScript.Form.cmbHomeownerProducts = "Electrical Wiring" Then
+                            .subScript.Form.tabProduct.Pages(3).SetFocus
+
+                            If IsStaff Then
+                                .subScript.Form.lblelecstaff.Visible = True
+                                .subScript.Form.lblElecDualNormal.Visible = False
+                                
+                            Else
+                                .subScript.Form.lblElecDualNormal.Visible = True
+                                .subScript.Form.lblelecstaff.Visible = False
+                              
+                            End If
+                            
+                            .subScript.Form.lblElecProduct.Visible = True
+                            .subScript.Form.optElecWiring.Visible = True
+                            
+                        Else
+                           .subScript.Form.tabProduct.Pages(1).SetFocus
+                            
+                        End If
+                        
+                        GoTo LeaveNow
+                    
+                ElseIf .subScript.Form.tabProduct = 1 Then  'Property & System Details
+                
+                    If .subScript.Form.optContinue = 2 Then
+                          ShowPopup "End call", "Customer does not wish to continue"
+                          GoTo LeaveNow
+                                              
+                    End If
+                    
+                    If Not ValidateProductHS_2 Then GoTo LeaveNow
+                   
+                    If .subScript.Form.optSystem = 1 Or _
+                        (.subScript.Form.optSystem = 2 And .subScript.Form.cmbSelectSystem = "Non-Standard excluding Hot Water Cylinder") Then
+                        .subScript.Form.optCover.Visible = True
+                        If GetScript = "COSCom" Then .subScript.Form.tglService.Visible = False Else .subScript.Form.tglService.Visible = True
+                        .subScript.Form.optOptions.Visible = False
+                        .subScript.Form.lblFullHeatingCover.Visible = False
+
+                    Else
+                        .subScript.Form.optCover.Visible = False
+                        .subScript.Form.optOptions.Visible = True
+                        .subScript.Form.lblFullHeatingCover.Visible = True
+                                                    
+                    End If
+                    
+                        .subScript.Form.lblBoilerCover.Visible = False
+                        .subScript.Form.lblWarmAirCover.Visible = False
+                        .subScript.Form.lblPowerMaxCover.Visible = False
+                        .subScript.Form.lblProdDetails.Visible = False
+                        .subScript.Form.optProduct.Visible = False
+                        .subScript.Form.lblMoreDetails.Visible = False
+                        .subScript.Form.cmbBedrooms.Visible = False
+                        .subScript.Form.cmbRadiators.Visible = False
+                        .subScript.Form.lblNoSale.Visible = False
+                        
+                        SetupGasProduct
+                                             
+                   .txtSection3 = BuildString
+                   .subScript.Form.tabProduct.Pages(2).SetFocus
+
+                    GoTo LeaveNow
+                    
+                ElseIf .subScript.Form.tabProduct = 2 Then  'Product Details
+                
+                    If .subScript.Form.optProduct = 2 And Not IsHomeOwner Then
+                          ShowPopup "Cannot Continue", "Customer does not want to go ahead with product and is not eligible for wiring cover"
+                          GoTo LeaveNow
+                    
+                    End If
+                                    
+                    If Not ValidateProductHS_3 Then GoTo LeaveNow
+                    
+                    If .subScript.Form.optProduct = 1 Then
+                        .txtBedrooms = .subScript.Form.cmbBedrooms
+                        .txtRadiators = .subScript.Form.cmbRadiators
+                    
+                        ShuffleHeaders 3, 4
+                        .txtSection3 = BuildString
+                        .subScript.SourceObject = "frm_NewAccountHS"
+                        GoTo LeaveNow
+
+                    ElseIf .subScript.Form.optProduct = 2 And IsHomeOwner Then
+                        .txtSection3 = BuildString
+                        .subScript.Form.tabProduct.Pages(3).SetFocus
+                        GoTo LeaveNow
+
+                    End If
+                  
+                ElseIf .subScript.Form.tabProduct = 3 Then  'Electrical Wiring
+                
+                    If .subScript.Form.optElecWiring = 2 And Not IsShield Then
+                        ShowPopup "Cannot Continue", "Customer does not want to go ahead with product"
+                        GoTo LeaveNow
+                        
+                    End If
+                    
+                    If Not ValidateProductHS_4 Then GoTo LeaveNow
+
+                    ElecWiringShown = True
+
+                    .txtSection3 = BuildString
+                    
+                    SetupGasProduct
+
+                    If IsShield Or IsWiring Then .subScript.Form.tabProduct.Pages(4).SetFocus
+                    If IsShield Then .subScript.Form.lblGasPrice.Visible = True
+                    If IsWiring Then .subScript.Form.lblElecPrice.Visible = True
+                    
+                    GoTo LeaveNow
+                    
+                ElseIf .subScript.Form.tabProduct = 4 Then 'Product Summary
+                        
+                    If Not ValidateProductHS_5 Then GoTo LeaveNow
+                    ProdSummaryShown = True
+                        
+                    If IsWiring Then
+                        ShuffleHeaders 3, 4
+                    
+                        .txtSection3 = BuildString
+                        .subScript.SourceObject = "frm_NewAccountHS"
+                        GoTo LeaveNow
+
+                    Else
+                        ShuffleHeaders 3, 5
+                        
+                        .txtSection3 = BuildString
+                        .subScript.SourceObject = "frm_Close"
+                        GoTo LeaveNow
+                    
+                    End If
+                    
+                End If
+              
+                        
+'******************************************************************
+'SECTION 4
+'NEW ACCOUNT
+            Case "frm_NewAccountHS"
+            
+                If .subScript.Form.tabNew = 0 Then
+                    
+                    If Not ValidateNewAccountHS_1 Then GoTo LeaveNow
+
+  '                  .txtSection4 = BuildString
+                    .txtSPayMeth = .subScript.Form.cmbGPay
+                    .txtWPaymeth = .subScript.Form.cmbEPay
+                                            
+                    If .subScript.Form.cmbEPay = "Monthly Direct Debit" Or .subScript.Form.cmbGPay = "Monthly Direct Debit" Then
+                       .txtSection4 = BuildString
+                       .subScript.Form.tabNew.Pages(1).SetFocus
+                       GoTo LeaveNow
+                          
+                    ElseIf IsHomeOwner And InWiringArea(.txtPostCode) And ElecWiringShown = False Then
+                        ShuffleHeaders 4, 3
+                        .txtSection4 = BuildString
+                        .subScript.SourceObject = "frm_ProductHS"
+                        .subScript.Form.tabProduct.Pages(3).SetFocus
+                        
+                        If .subScript.Form.cmbHomeownerProducts = "Gas Products" And Not IsStaff Then
+                            .subScript.Form.optGasOnly.Visible = True
+                            .subScript.Form.lblelecstaff.Visible = False
+                            .subScript.Form.lblGasNormal.Visible = True
+
+                        Else
+
+                            If IsStaff Then
+                                .subScript.Form.lblelecstaff.Visible = True
+                                .subScript.Form.lblElecDualNormal.Visible = False
+                                
+                            Else
+                                .subScript.Form.lblElecDualNormal.Visible = True
+                                .subScript.Form.lblelecstaff.Visible = False
+                              
+                            End If
+
+                            .subScript.Form.lblElecProduct.Visible = True
+                            .subScript.Form.optElecWiring.Visible = True
+                            .subScript.Form.optGasOnly.Visible = False
+                            .subScript.Form.lblGasNormal.Visible = False
+                            
+                        End If
+                        
+                        GoTo LeaveNow
+                        
+                    ElseIf IsShield And ProdSummaryShown = False Then
+                        ShuffleHeaders 4, 3
+                        .txtSection4 = BuildString
+                        .subScript.SourceObject = "frm_ProductHS"
+                        SetupGasProduct
+
+                        If IsShield Then .subScript.Form.lblGasPrice.Visible = True
+                        If IsWiring Then .subScript.Form.lblElecPrice.Visible = True
+                        .subScript.Form.tabProduct.Pages(4).SetFocus
+                        .subScript.Form.lblGasPrice.Visible = True
+
+                        GoTo LeaveNow
+                    
+                    Else
+                        ShuffleHeaders 4, 5
+                        .txtSection4 = BuildString
+                        .subScript.SourceObject = "frm_Close"
+                        GoTo LeaveNow
+
+                    End If
+                    
+                ElseIf .subScript.Form.tabNew = 1 Then
+                
+                    If (.subScript.Form.optDDSetup1 = 2 And .subScript.Form.optDDSetup3 = 2) Or _
+                      (.subScript.Form.optDDSetup4 = 1 And .subScript.Form.optDDSetup5 = 2) Then
+                        ShowPopup "Cannot Continue", "Require account holder permission to setup Direct Debit"
+                        GoTo LeaveNow
+                        
+                    ElseIf .subScript.Form.optDDCorrect = 2 Then
+                           Hdr = "Cannot continue"
+                           Msg = "Cannot continue until the customer confirms their bank details are correct."
+                           GoTo ShowMessage
+                           
+                        End If
+
+                    If Not ValidateNewAccountHS_2 Then GoTo LeaveNow
+                    
+                    .txtWDate = .subScript.Form.cmbDDDay
+                    .txtSDate = .subScript.Form.cmbDDDay
+
+                    If IsHomeOwner And InWiringArea(.txtPostCode) And ElecWiringShown = False Then
+                        ShuffleHeaders 4, 3
+                        .txtSection4 = BuildString
+                        .subScript.SourceObject = "frm_ProductHS"
+                        .subScript.Form.tabProduct.Pages(3).SetFocus
+                        
+                        If .subScript.Form.cmbHomeownerProducts = "Gas Products" And Not IsStaff Then
+                            .subScript.Form.optGasOnly.Visible = True
+                            .subScript.Form.lblelecstaff.Visible = False
+                            .subScript.Form.lblGasNormal.Visible = True
+
+                        Else
+
+                            If IsStaff Then
+                                .subScript.Form.lblelecstaff.Visible = True
+                                .subScript.Form.lblElecDualNormal.Visible = False
+                                
+                            Else
+                                .subScript.Form.lblElecDualNormal.Visible = True
+                                .subScript.Form.lblelecstaff.Visible = False
+                              
+                            End If
+
+                            .subScript.Form.lblElecProduct.Visible = True
+                            .subScript.Form.optElecWiring.Visible = True
+                            .subScript.Form.optGasOnly.Visible = False
+                            .subScript.Form.lblGasNormal.Visible = False
+                            
+                        End If
+
+                        GoTo LeaveNow
+                        
+                    ElseIf IsShield And ProdSummaryShown = False Then
+                        ShuffleHeaders 4, 3
+                        .txtSection4 = BuildString
+                        .subScript.SourceObject = "frm_ProductHS"
+                        SetupGasProduct
+
+                        If IsShield Then .subScript.Form.lblGasPrice.Visible = True
+                        If IsWiring Then .subScript.Form.lblElecPrice.Visible = True
+                        .subScript.Form.tabProduct.Pages(4).SetFocus
+                        .subScript.Form.lblGasPrice.Visible = True
+
+                        GoTo LeaveNow
+                    
+                    Else
+                        ShuffleHeaders 4, 5
+                        .txtSection4 = BuildString
+                        .subScript.SourceObject = "frm_Close"
+                        GoTo LeaveNow
+                                          
+                    End If
+                                        
+                End If
+'******************************************************************
+'SECTION 5
+'CLOSE
+                Case "frm_Close"
+                
+                    If .subScript.Form.tabClose = 0 Then
+                        
+                        If Not ValidateCloseHS_1 Then GoTo LeaveNow
+                        
+                        .txtSection5 = BuildString
+                        .subScript.Form.tabClose.Pages(1).SetFocus
+                        GoTo LeaveNow
+                        
+                    ElseIf .subScript.Form.tabClose = 1 Then
+                        
+                        If Not ValidateCloseHS_2 Then GoTo LeaveNow
+                      
+                        If IsShield Or Forms("frm_bucket").txtInspection = "Yes" Then
+                              .txtSection5 = BuildString
+                              .subScript.Form.tabClose.Pages(2).SetFocus
+                              GoTo LeaveNow
+                        Else
+                        
+                              Hdr = "Script Complete"
+                              Msg = "Deal with any further enquiries the customer may have before ending the call"
+                              GoTo ShowMessage
+                        End If
+                        
+                    ElseIf .subScript.Form.tabClose = 2 Then
+                    
+                        If Not ValidateCloseHS_3 Then GoTo LeaveNow
+                        
+                        Hdr = "Script Complete"
+                        Msg = "Deal with any further enquiries the customer may have before ending the call"
+                        GoTo ShowMessage
+                        
+                    End If
+
+        End Select
+        
+    End With
+    
+LeaveNow:
+    BuildChecklist
+
+    If CheckForWarning Then Forms("frm_Bucket").lblHokeyPokey.Visible = True Else Forms("frm_Bucket").lblHokeyPokey.Visible = False
+
+    Exit Sub
+    
+ShowMessage:
+    ShowPopup Hdr, Msg
+    GoTo LeaveNow
+
+   On Error GoTo 0
+   Exit Sub
+
+NextHS_Error:
+
+    LogError Err.Number, Err.Description, "NextHS (basHomeServices)", Erl
+
+End Sub
