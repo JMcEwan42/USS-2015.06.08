@@ -1,0 +1,571 @@
+Sub NextNC()
+'next button code for v3 hs scripts
+
+    Dim Hdr As String, Msg As String
+    Dim tRS As DAO.Recordset, TQdef As QueryDef, TSQL As String
+    Dim TCount As Integer, lCount As Integer
+
+   On Error GoTo NextNC_Error
+
+    With Forms("frm_Bucket")
+    
+'******************************************************************
+        Select Case .subScript.SourceObject
+        
+'******************************************************************
+'SECTION 1
+'WELCOME PAGE
+            Case "frm_Welcome" 'section 1
+                
+                'validate welcome page
+                If Not ValidateNCWelcome Then GoTo LeaveNow
+                
+                'it's valid, so let's pass all the data onto frm_Bucket
+                .txtSection1 = BuildString
+                
+                Select Case .subScript.Form.optBrand
+                    Case 1: .txtBrand = "SSE Scottish Hydro"
+                    Case 2: .txtBrand = "SSE Southern Electric"
+                    Case 3: .txtBrand = "SSE Swalec"
+                    Case 4: .txtBrand = "SSE"
+                    Case 5: .txtBrand = "M&S Energy"
+                    Case 6: .txtBrand = "Ebico"
+                    
+                End Select
+                
+                .txtTitle = .subScript.Form.cmbTitle
+                .txtName = .subScript.Form.txtFirstName
+                .txtSurname = .subScript.Form.txtSurname
+                
+                ShuffleHeaders 1, 2
+                
+                'load the next form
+                Forms("frm_bucket").subScript.SourceObject = "frm_DPAPlus"
+                GoTo LeaveNow
+                
+'******************************************************************
+'SECTION 2
+'DATA PROTECTION
+            Case "frm_DPAPlus"
+            
+                'validate DPA section
+                'as this section (and others later on too) has more than one page on the tab control,
+                'there are separate validation functions for each page.
+                'call them ONLY when the appropriate tab control page is active
+                If .subScript.Form.tabDPA = 0 Then
+
+                    If Not ValidateDPA_1 Then GoTo LeaveNow
+                                                    
+                    If .subScript.Form.optCheckResp = 1 Then
+                        .txtSection2 = BuildString
+                        'copy form data onto frm_bucket for future reference
+                        .txtHouseNum = .subScript.Form.txtHouseNum
+                        .txtAddress = .subScript.Form.txtAdd1
+                        .txtTown = .subScript.Form.txtTown
+                        .txtPostCode = .subScript.Form.txtPostCode
+                        .txtDob = .subScript.Form.txtDob
+                        .txtTel = .subScript.Form.txtTel
+                        .txtEmail = .subScript.Form.txtEmail
+                        .txtMob = .subScript.Form.txtMobile
+                        
+                        ShuffleHeaders 2, 3
+                        
+                        .subScript.SourceObject = "frm_MetersNC"
+                        GoTo LeaveNow
+                    
+                    ElseIf .subScript.Form.optCheckResp = 2 And .subScript.Form.optSpeakTo = 1 Then
+                        .txtSection2 = BuildString
+                        .subScript.Form.optCheckResp2.Visible = True
+                        .subScript.Form.lblCheckResp.Visible = True
+                        .subScript.Form.lblCheckResp2HS.Visible = False
+                        .subScript.Form.tabDPA.Pages(1).SetFocus
+                        GoTo LeaveNow
+                                            
+                    ElseIf .subScript.Form.optCallback = 1 Then
+                        ShowPopup "Call completed", "Cannot continue without speaking to the account holder"
+                        GoTo LeaveNow
+                        
+                    ElseIf .subScript.Form.optCallback = 2 Then
+                        ShowPopup "Cannot continue", "Cannot continue without speaking to the account holder"
+                        GoTo LeaveNow
+                                                
+                    End If
+                                                                
+                ElseIf .subScript.Form.tabDPA = 1 Then
+                
+                    If Not ValidateDPA_2 Then GoTo LeaveNow
+                    
+                    .txtSection2 = BuildString
+                    
+                    If .subScript.Form.optCheckResp2 = 2 Then
+                        ShowPopup "Cannot continue", "Cannot continue if customer does not agree"
+                        GoTo LeaveNow
+                        
+                    ElseIf .subScript.Form.optGivePerm = 2 Then
+                        ShowPopup "Cannot continue", "Cannot continue if customer does not agree"
+                        GoTo LeaveNow
+                        
+                    Else
+                        'copy form data onto frm_bucket for future reference
+                        .txtTitle = .subScript.Form.cmbTitle2
+                        .txtName = .subScript.Form.txtFirstName2
+                        .txtSurname = .subScript.Form.txtSurname2
+                        .txtHouseNum = .subScript.Form.txtHouseNum2
+                        .txtAddress = .subScript.Form.txtAdd2
+                        .txtTown = .subScript.Form.txtTown2
+                        .txtPostCode = .subScript.Form.txtPostcode2
+                        .txtDob = .subScript.Form.txtDob2
+                                                
+                        .txt3rdRelation = .subScript.Form.txtRelationship
+                        .txt3rdDuration = .subScript.Form.cmb3rdDuration
+                                                                            
+                        .txtTel = .subScript.Form.txtTel2
+                        .txtEmail = .subScript.Form.txtEmail2
+                        .txtMob = .subScript.Form.txtMobile2
+                        
+                        ShuffleHeaders 2, 3
+                                            
+                        .subScript.SourceObject = "frm_MetersNC"
+                        GoTo LeaveNow
+                        
+                    End If
+                    
+                End If
+                        
+'******************************************************************
+'SECTION 3
+'PRODUCT
+            Case "frm_MetersNC"
+            
+                If .subScript.Form.tabMeters = 0 Then  'Supply Details
+                
+                      If .subScript.Form.optSupply = 2 Then
+                        ShowPopup "Cannot continue", "Cannot continue as commercial supply"
+                        GoTo LeaveNow
+
+                      ElseIf .subScript.Form.optSupplyNumbers = 2 And .subScript.Form.optPermission = 2 Then
+                        ShowPopup "Cannot continue", "We need your supply numbers to continue"
+                        GoTo LeaveNow
+
+                      ElseIf Not ValidateMetersNC_1 Then
+                        GoTo LeaveNow
+                     
+                      End If
+                      
+                      .txtSection3 = BuildString
+                      .subScript.Form.tabMeters.Pages(1).SetFocus
+
+                      If .subScript.Form.cmbFuel = "Dual Fuel" Or .subScript.Form.cmbFuel = "Electric Only" Then
+                          .subScript.Form.cmbElecInstall.Visible = True
+                          .optIsElec = 1
+                          
+                      End If
+                      
+                      If .subScript.Form.cmbFuel = "Dual Fuel" Or .subScript.Form.cmbFuel = "Gas Only" Then
+                          .subScript.Form.cmbGasInstall.Visible = True
+                          .optIsGas = 1
+                          
+                      End If
+
+                      GoTo LeaveNow
+                      
+                ElseIf .subScript.Form.tabMeters = 1 Then  'Meter Details
+                
+                    If Not ValidateMetersNC_2 Then GoTo LeaveNow
+                            
+                    .txtSection3 = BuildString
+        
+                    If .subScript.Form.cmbGasInstall = "Install New Meter" Or .subScript.Form.cmbElecInstall = "Install New Meter" Then
+                        
+                        If .subScript.Form.cmbGasMeter = "Pay As You Go" Or .subScript.Form.cmbElecMeter = "Pay As You Go" Then
+                            .subScript.Form.tabMeters.Pages(2).SetFocus
+
+                        Else
+                        
+                            .subScript.Form.tabMeters.Pages(4).SetFocus
+                        
+                            If (.subScript.Form.cmbFuel = "Dual Fuel" Or .subScript.Form.cmbFuel = "Electric Only") And _
+                                .subScript.Form.cmbElecInstall = "Install New Meter" Then
+                                .subScript.Form.txtElecInstallDate.Visible = True
+                                .subScript.Form.optElecSlot.Visible = True
+                            End If
+                            
+                   
+                            If (.subScript.Form.cmbFuel = "Dual Fuel" Or .subScript.Form.cmbFuel = "Gas Only") And _
+                                .subScript.Form.cmbGasInstall = "Install New Meter" Then
+                                .subScript.Form.txtGasInstallDate.Visible = True
+                                .subScript.Form.optGasSlot.Visible = True
+                            End If
+                       
+                       End If
+                       
+                    Else
+
+                        ShuffleHeaders 3, 4
+                    
+                        .txtSection3 = BuildString
+                        .subScript.SourceObject = "frm_ProjectionNC"
+
+                        If .txtEMeter = "Credit" Or .txtGMeter = "Credit" Then
+                            .subScript.Form.lblHowYouPay.Visible = True
+                            .subScript.Form.optPayOther.Visible = True
+
+                        ElseIf .txtEMeter = "Pay As You Go" Or .txtGMeter = "Pay As You Go" Then
+                            .subScript.Form.lblPPM.Visible = True
+                    
+                        End If
+                        
+                    End If
+                    
+                    GoTo LeaveNow
+                    
+                ElseIf .subScript.Form.tabMeters = 2 Then  'Pay Go Info
+                
+                ' No fields to validate on this page
+                
+                    .txtSection3 = BuildString
+                    .subScript.Form.tabMeters.Pages(3).SetFocus
+
+                    GoTo LeaveNow
+                    
+                ElseIf .subScript.Form.tabMeters = 3 Then  'Pay Go Info2
+                
+                    If Not ValidateMetersNC_4 Then GoTo LeaveNow
+                    
+                    .txtSection3 = BuildString
+
+                    If .subScript.Form.optPayGo = 2 Then
+                    
+                        .subScript.Form.tabMeters.Pages(1).SetFocus
+                    
+                    Else
+                        If .subScript.Form.cmbGasInstall = "Install New Meter" Or .subScript.Form.cmbElecInstall = "Install New Meter" Then
+                    
+                            .subScript.Form.tabMeters.Pages(4).SetFocus
+
+                            If (.subScript.Form.cmbFuel = "Dual Fuel" Or .subScript.Form.cmbFuel = "Electric Only") Then
+                                .subScript.Form.txtElecInstallDate.Visible = True
+                                .subScript.Form.optElecSlot.Visible = True
+                            End If
+                            
+                   
+                            If (.subScript.Form.cmbFuel = "Dual Fuel" Or .subScript.Form.cmbFuel = "Gas Only") Then
+                                .subScript.Form.txtGasInstallDate.Visible = True
+                                .subScript.Form.optGasSlot.Visible = True
+                            End If
+
+                        Else
+                    
+                            .subScript.Form.tabMeters.Pages(5).SetFocus
+                        
+                        End If
+                    
+                    End If
+                    
+                    GoTo LeaveNow
+                    
+                ElseIf .subScript.Form.tabMeters = 4 Then 'Meter Installation
+                        
+                    If Not ValidateMetersNC_5 Then GoTo LeaveNow
+                    
+                    .txtSection3 = BuildString
+                    .subScript.Form.tabMeters.Pages(5).SetFocus
+
+                    GoTo LeaveNow
+                    
+                ElseIf .subScript.Form.tabMeters = 5 Then 'Safety Questions
+                    If Not ValidateMetersNC_6 Then GoTo LeaveNow
+                        
+                    ShuffleHeaders 3, 4
+                    
+                    .txtSection3 = BuildString
+                    .subScript.SourceObject = "frm_ProjectionNC"
+
+                    If .txtEMeter = "Pay As You Go" Or .txtGMeter = "Pay As You Go" Then .subScript.Form.lblPPM.Visible = True
+                    If .txtEMeter = "Credit" Or .txtGMeter = "Credit" Then
+                        .subScript.Form.lblHowYouPay.Visible = True
+                        .subScript.Form.optPayOther.Visible = True
+                    
+                    End If
+                                              
+                    GoTo LeaveNow
+                    
+                End If
+              
+'******************************************************************
+'SECTION 4
+'PROJECTION
+            Case "frm_ProjectionNC"
+            
+                If .subScript.Form.tabProj = 0 Then
+                
+                    If Not ValidateProjectionNC_1 Then GoTo LeaveNow
+                    
+                      .txtSection4 = BuildString
+                      .subScript.Form.tabProj.Pages(1).SetFocus
+    
+                      If Forms("frm_bucket").txtEConfig = "Economy 7" Then
+                          .subScript.Form.lblE7Usage.Visible = True
+                                                 
+                      ElseIf Forms("frm_bucket").txtEConfig = "Economy 10" Then
+                          .subScript.Form.lblE10Usage.Visible = True
+                          
+                      ElseIf Forms("frm_bucket").txtEConfig = "THTC" Then
+                          .subScript.Form.lblTHTCUsage.Visible = True
+                          
+                      ElseIf Forms("frm_bucket").txtEConfig = "Superdeal" Then
+                          .subScript.Form.lblSuperUsage.Visible = True
+                          
+                      Else
+                          .subScript.Form.lblGenUsage.Visible = True
+                          
+                      End If
+                     
+                      GoTo LeaveNow
+                      
+                ElseIf .subScript.Form.tabProj = 1 Then
+                
+                    If Not ValidateProjectionNC_2 Then GoTo LeaveNow
+                    
+                      .txtSection4 = BuildString
+                      .subScript.Form.tabProj.Pages(2).SetFocus
+                      
+                      GoTo LeaveNow
+                    
+                ElseIf .subScript.Form.tabProj = 2 Then
+                
+                    If Not ValidateProjectionNC_3 Then GoTo LeaveNow
+                    
+                      .txtSection4 = BuildString
+                      .subScript.Form.tabProj.Pages(3).SetFocus
+                      SetupTariffChoices
+                                         
+                      GoTo LeaveNow
+                      
+                ElseIf .subScript.Form.tabProj = 3 Then
+                
+                    If .subScript.Form.optTariff = 5 Then
+                        Hdr = "Cannot continue"
+                        Msg = "Cannot continue if customer does not want any of the available tariffs"
+                        GoTo ShowMessage
+                              
+                    End If
+                
+                    If Not ValidateProjectionNC_4 Then GoTo LeaveNow
+                    
+                                            
+                    If IsElec Then
+                            
+                        'pass the chosen tariff data into the main data text boxes
+                        .txtEProj = .Controls("txt" & .subScript.Form.optTariff & "eproj")
+                        .txtEDD = .Controls("txt" & .subScript.Form.optTariff & "edd")
+                        .txtESC = .Controls("txt" & .subScript.Form.optTariff & "esc")
+                        .txtER1 = .Controls("txt" & .subScript.Form.optTariff & "er1")
+                        .txtER2 = .Controls("txt" & .subScript.Form.optTariff & "er2")
+                        .txtER3 = .Controls("txt" & .subScript.Form.optTariff & "er3")
+                        .txtETCR = .Controls("txt" & .subScript.Form.optTariff & "etcr")
+                            
+                        If IsElecPPM Then
+                            .txtETariff = "Pay As You Go"
+                                
+                        Else
+                            .txtETariff = .subScript.Form.Controls("tglTariff" & .subScript.Form.optTariff).Caption
+                                                                
+                        End If
+                            
+                        .subScript.Form.lblElecProj.Visible = True
+                        .subScript.Form.lblElecProj.Caption = FillElecProjLabel
+                                                    
+                    Else
+                        .subScript.Form.lblElecProj.Visible = False
+                          
+                    End If
+                        
+                    If IsGas Then
+                        .txtGProj = .Controls("txt" & .subScript.Form.optTariff & "gproj")
+                        .txtGDD = .Controls("txt" & .subScript.Form.optTariff & "gdd")
+                        .txtGSC = .Controls("txt" & .subScript.Form.optTariff & "gsc")
+                        .txtGR1 = .Controls("txt" & .subScript.Form.optTariff & "gr1")
+                        .txtGTCR = .Controls("txt" & .subScript.Form.optTariff & "gtcr")
+                        
+                        If IsGasPPM Then
+                            .txtGTariff = "Pay As You Go"
+                                
+                        Else
+                            .txtGTariff = .subScript.Form.Controls("tglTariff" & .subScript.Form.optTariff).Caption
+                                
+                        End If
+                          
+                        .subScript.Form.lblGasProj.Visible = True
+                        .subScript.Form.lblGasProj.Caption = FillGasProjLabel
+                          
+                           
+                    Else
+                        .subScript.Form.lblGasProj.Visible = False
+                            
+                    End If
+                    
+                    .subScript.Form.lblDiscount.Caption = FillDiscountLabel
+                    
+                    If .txtEPay = "Monthly Direct Debit" Or .txtGPay = "Monthly Direct Debit" Then
+                        .subScript.Form.lblDD.Visible = True
+                        .subScript.Form.lblDDAmts.Visible = True
+                        .subScript.Form.lblDDAmts.Caption = FillDDAmounts
+                        .subScript.Form.lblDDStuff.Visible = True
+                    
+                    Else
+                        .subScript.Form.lblDD.Visible = False
+                        .subScript.Form.lblDDAmts.Visible = False
+                        .subScript.Form.lblDDStuff.Visible = False
+                        
+                    End If
+
+                    .txtSection4 = BuildString
+                    .subScript.Form.tabProj.Pages(4).SetFocus
+                      
+                    GoTo LeaveNow
+                
+                ElseIf .subScript.Form.tabProj = 4 Then
+                                                
+                    ShuffleHeaders 4, 5
+                    
+                    .txtSection4 = BuildString
+                    .subScript.SourceObject = "frm_OtherCOS"
+                    GoTo LeaveNow
+                    
+                End If
+                
+'******************************************************************
+'SECTION 5
+'CAB, SMART METER AND GREEN DEAL
+
+            Case "frm_OtherCOS"
+            
+                If Not ValidateOtherCOS Then GoTo LeaveNow
+                    
+                If .subScript.Form.optSmartCredit = 2 Or .subScript.Form.optSmartPPM = 2 Then
+                    Hdr = "Cannot continue"
+                    Msg = "Cannot continue if customer does not wish to lose smart meter functionality"
+                    GoTo ShowMessage
+                       
+                End If
+                    
+                .txtSection5 = BuildString
+                ShuffleHeaders 5, 6
+                .subScript.SourceObject = "frm_NewAccountNC"
+                
+                If IsElec And Not (.txtEPay = "" Or IsNull(.txtEPay)) Then .subScript.Form.cmbEPay = .txtEPay
+                If IsGas And Not (.txtGPay = "" Or IsNull(.txtGPay)) Then .subScript.Form.cmbGPay = .txtGPay
+                If .txtEPay = "Monthly Direct Debit" Or .txtGPay = "Monthly Direct Debit" Then
+                    .subScript.Form.lblMDD.Visible = True
+                    .subScript.Form.lblQuarterly.Visible = False
+                ElseIf .txtEPay = "Quarterly Bill" Or .txtGPay = "Quarterly Bill" Then
+                    .subScript.Form.lblQuarterly.Visible = True
+                    .subScript.Form.lblMDD.Visible = False
+                Else
+                    .subScript.Form.lblQuarterly.Visible = False
+                    .subScript.Form.lblMDD.Visible = False
+                End If
+                
+                GoTo LeaveNow
+                
+'******************************************************************
+'SECTION 6
+'NEW ACCOUNT
+            Case "frm_NewAccountNC"
+            
+                If .subScript.Form.tabNew = 0 Then
+                    
+                    If Not ValidateNewAccountNC_1 Then GoTo LeaveNow
+
+                    .txtGPay = .subScript.Form.cmbGPay
+                    .txtEPay = .subScript.Form.cmbEPay
+                                            
+                    If IsElecDD Or IsGasDD Then
+                       .txtSection6 = BuildString
+                       .subScript.Form.tabNew.Pages(1).SetFocus
+                          
+                    Else
+                       
+                      ShuffleHeaders 6, 7
+                      .txtSection6 = BuildString
+                      .subScript.SourceObject = "frm_Close"
+                      
+                      If SaleSaved = False Then .btnSave.Visible = True Else .btnSave.Visible = False
+                      If SaleSaved = False Then .imgSave.Visible = True Else .imgSave.Visible = False
+
+                                          
+                    End If
+                    
+                ElseIf .subScript.Form.tabNew = 1 Then
+                
+                        If (.subScript.Form.optDDSetup1 = 2 And .subScript.Form.optDDSetup3 = 2) Or _
+                            (.subScript.Form.optDDSetup4 = 1 And .subScript.Form.optDDSetup5 = 2) Then
+                            ShowPopup "Cannot Continue", "Require account holder permission to setup Direct Debit"
+                            GoTo LeaveNow
+                        
+                        ElseIf .subScript.Form.optDDCorrect = 2 Then
+                            Hdr = "Cannot continue"
+                            Msg = "Cannot continue until the customer confirms their bank details are correct."
+                            GoTo ShowMessage
+                           
+                        End If
+
+                    If Not ValidateNewAccountNC_2 Then GoTo LeaveNow
+                    
+                    .txtWDate = .subScript.Form.cmbDDDay
+                    .txtSDate = .subScript.Form.cmbDDDay
+                    
+                    ShuffleHeaders 6, 7
+                    .txtSection6 = BuildString
+                    .subScript.SourceObject = "frm_Close"
+          
+                      If SaleSaved = False Then .btnSave.Visible = True Else .btnSave.Visible = False
+                      If SaleSaved = False Then .imgSave.Visible = True Else .imgSave.Visible = False
+          
+                                        
+                End If
+'******************************************************************
+'SECTION 7
+'CLOSE
+                Case "frm_Close"
+                
+                    If .subScript.Form.tabClose = 0 Then
+                        
+                        .txtSection7 = BuildString
+                        .subScript.Form.tabClose.Pages(1).SetFocus
+                        GoTo LeaveNow
+                        
+                    ElseIf .subScript.Form.tabClose = 1 Then
+                        
+                        If Not ValidateCloseNC_2 Then GoTo LeaveNow
+                        
+                        Hdr = "Script Complete"
+                        Msg = "Deal with any further enquiries the customer may have before ending the call"
+                        GoTo ShowMessage
+                        
+                    End If
+
+        End Select
+        
+    End With
+    
+LeaveNow:
+    BuildChecklist
+
+    If CheckForWarning Then Forms("frm_Bucket").lblHokeyPokey.Visible = True Else Forms("frm_Bucket").lblHokeyPokey.Visible = False
+
+    Exit Sub
+    
+ShowMessage:
+    ShowPopup Hdr, Msg
+    GoTo LeaveNow
+
+   On Error GoTo 0
+   Exit Sub
+
+NextNC_Error:
+
+    LogError Err.Number, Err.Description, "NextNC (basNewConns)", Erl
+
+End Sub
