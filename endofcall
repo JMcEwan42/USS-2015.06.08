@@ -18,9 +18,9 @@ Private Sub btnSave_Click()
                 ShowPopup "Missing call details", "You must enter the customer's telephone number, your turret number and call start time before you can save your sale"
                 Exit Sub
                                     
-            ElseIf (GetScript = "NewCon" Or (Left(GetScript, 2) = "HM" And InStr(1, GetScript, "Deemed") = 0 And _
-                Forms("frm_Bucket").optEOnSupply = 1 Or Forms("frm_Bucket").optGOnSupply = 1)) And _
-                (.txtSiteID = "" Or IsNull(.txtSiteID) Or Len(.txtSiteID) = 9 And .txtPersonalProjection = "" Or IsNull(.txtPersonalProjection)) Then
+            ElseIf (Left(GetScript, 2) = "HM" And InStr(1, GetScript, "Deemed") = 0) And _
+                ((.txtSiteID = "" Or IsNull(.txtSiteID)) Or (Len(.txtSiteID) = 9 And (.txtPersonalProjection = "" Or IsNull(.txtPersonalProjection)))) And _
+                (Forms("frm_Bucket").optEOnSupply = 1 Or Forms("frm_Bucket").optGOnSupply = 1) Then
                 ShowPopup "Missing call details", "Enter the Site ID and/or portal reference before saving"
                 Exit Sub
                 
@@ -71,7 +71,7 @@ Private Sub btnSave_Click()
             ProjRef = .txtPersonalProjection
             TelNo = .txtTel
                         
-            WorkSuiteSave_SQL LiveListened, LiveListener, TurretNumber, CallStartTime, ProjRef, TelNo ', NCElec, NCGas, HSS, HSW 'Live SQL server table
+            WorkSuiteSave_SQL LiveListened, LiveListener, TurretNumber, CallStartTime, ProjRef, TelNo, NCElec, NCGas, HSS, HSW 'Live SQL server table
 
             Forms("frm_Bucket").btnClose.SetFocus
             Forms("frm_Bucket").btnSave.Visible = False
@@ -142,7 +142,7 @@ Private Sub Form_Open(Cancel As Integer)
             
             End If
 
-        ElseIf GetScript = "NewCon" Or (Left(GetScript, 2) = "PG" And (Forms("frm_Bucket").optEOnSupply = 1 Or Forms("frm_Bucket").optGOnSupply = 1)) Then
+        ElseIf GetScript = "NewCon" Or (Left(GetScript, 2) = "PG" And Forms("frm_Bucket").optEOnSupply = 1 Or Forms("frm_Bucket").optGOnSupply = 1) Then
             .txtSiteID.Visible = False
             .txtPersonalProjection.Visible = True
                         
