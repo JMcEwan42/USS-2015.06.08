@@ -1,27 +1,30 @@
 Public Sub WorkSuiteSave_SQL(Optional LiveListened As Integer, Optional LiveListener As String, Optional TurretNumber As String, Optional CallStartTime As String, _
-    Optional ProjRef As String, Optional TelNo As String)
-'this is the version of the code which will save to the SQL table.
-
-'Prototype version is COS only. Lots of default values
-'code will eventually need to adapt to current scripttype and feed in correct data
+    Optional ProjRef As String, Optional TelNo As String, Optional NCElec As Integer, Optional NCGas As Integer, _
+    Optional HSShield As Integer, Optional HSWiring As Integer)
+    'this is the version of the code which will save to the SQL table.
 
     Dim Result As Integer
     Dim SaveSQL As Integer
     Dim qSQL As String
            
     On Error GoTo WorkSuiteSave_Local_Error
+    
+    If IsMissing(NCElec) Or IsNull(NCElec) Then NCElec = 0
+    If IsMissing(NCGas) Or IsNull(NCGas) Then NCGas = 0
+    If IsMissing(HSShield) Or IsNull(HSShield) Then HSShield = 0
+    If IsMissing(HSWiring) Or IsNull(HSWiring) Then HSWiring = 0
 
     With Forms("frm_Bucket")
           
         If DetectTrainingMode Then
             qSQL = "INSERT INTO dbo_tbl_SalesDataTraining "
-            
+
         ElseIf DetectTestingMode Then
             qSQL = "INSERT INTO tbl_SalesData "
             
         Else
             qSQL = "INSERT INTO dbo_tbl_SalesData "
-            
+
         End If
             
         qSQL = qSQL & "(AdvisorPayroll, DateofSale, TimeofSale, CustomerSurname, PostCode, HouseRef, "
@@ -42,7 +45,7 @@ Public Sub WorkSuiteSave_SQL(Optional LiveListened As Integer, Optional LiveList
         qSQL = qSQL & "#" & Format(Now, "hh:mm:ss") & "#, "  'TimeofSale
         qSQL = qSQL & WrapString(.txtTitle & " " & .txtName & " " & .txtSurname) & ", " 'CustomerSurname
         
-        If InStr(1, GetScript, "InOnly") > 0 Or InStr(1, GetScript, "InOut") > 0 Then
+        If InStr(1, GetScript, "InOnly") > 0 Or InStr(1, GetScript, "InOut") > 0 Or GetScript = "HMDeemedIn" Then
             qSQL = qSQL & WrapString(.txtMoveInPostCode) & ", " 'PostCode
             qSQL = qSQL & WrapString(.txtMoveInHouseNum) & ", " 'HouseRef
 
@@ -54,7 +57,14 @@ Public Sub WorkSuiteSave_SQL(Optional LiveListened As Integer, Optional LiveList
 
         'electric energy sales
         If IsElec Then
-            qSQL = qSQL & "1, " 'ElecSale
+            
+            If GetScript = "NewCon" Then
+                qSQL = qSQL & NCElec & ", " 'Elecsale
+                
+            Else
+                qSQL = qSQL & "1, " 'ElecSale
+                
+            End If
         
             'Type of sale will change depending on scripttype
             If InStr(1, GetScript, "SPC") > 0 Then
@@ -97,16 +107,26 @@ Public Sub WorkSuiteSave_SQL(Optional LiveListened As Integer, Optional LiveList
                     End If
                     
                 End If
-        
+                
+            ElseIf GetScript = "NewCon" Then
+                qSQL = qSQL & "'NewConn',"
+                        
             End If
-
-            qSQL = qSQL & WrapString(.txtETariff) & ", " 'ElecTariff
+            
+            If InStr(1, GetScript, "HMDeemed", vbTextCompare) > 0 Then
+                qSQL = qSQL & "'Standard', " 'ElecTariff
+                
+            Else
+                qSQL = qSQL & WrapString(.txtETariff) & ", " 'ElecTariff
+                
+            End If
 
             Select Case .txtEPay
                 Case "Monthly Direct Debit": qSQL = qSQL & "1, "
                 Case "Quarterly Variable Direct Debit": qSQL = qSQL & "2, "
                 Case "Quarterly Bill": qSQL = qSQL & "3, "
                 Case "Pay As You Go": qSQL = qSQL & "4, "
+                Case Else: qSQL = qSQL & "3, "
             
             End Select
 
@@ -119,7 +139,14 @@ Public Sub WorkSuiteSave_SQL(Optional LiveListened As Integer, Optional LiveList
 
         'gas energy sales
         If IsGas Then
-            qSQL = qSQL & "1, " 'GasSale
+            
+            If GetScript = "NewCon" Then
+                qSQL = qSQL & NCGas & ", "
+            
+            Else
+                qSQL = qSQL & "1, " 'GasSale
+                
+            End If
             
             If InStr(1, GetScript, "SPC") > 0 Then
                 qSQL = qSQL & "'SPC', "
@@ -157,16 +184,26 @@ Public Sub WorkSuiteSave_SQL(Optional LiveListened As Integer, Optional LiveList
                     End If
                     
                 End If
-        
+                
+            ElseIf GetScript = "NewCon" Then
+                qSQL = qSQL & "'NewConn',"
+
             End If
         
-            qSQL = qSQL & WrapString(.txtGTariff) & ", " 'GasTariff
+            If InStr(1, GetScript, "HMDeemed", vbTextCompare) > 0 Then
+                qSQL = qSQL & "'Standard', " 'ElecTariff
+            
+            Else
+                qSQL = qSQL & WrapString(.txtGTariff) & ", " 'GasTariff
+                
+            End If
         
             Select Case .txtGPay
                 Case "Monthly Direct Debit": qSQL = qSQL & "1, "
                 Case "Quarterly Variable Direct Debit": qSQL = qSQL & "2, "
                 Case "Quarterly Bill": qSQL = qSQL & "3, "
                 Case "Pay As You Go": qSQL = qSQL & "4, "
+                Case Else: qSQL = qSQL & "3, "
             
             End Select
         
@@ -229,9 +266,33 @@ Public Sub WorkSuiteSave_SQL(Optional LiveListened As Integer, Optional LiveList
             qSQL = qSQL & "0, "
         
         End If
+        
+        'USS marker (uses addon field)
+        Select Case GetScript
+            Case "COSCom": qSQL = qSQL & "39, "
+            Case "COSComVixen": qSQL = qSQL & "47, "
+            Case "EbicoCOS": qSQL = qSQL & "45, "
+            Case "HMCOSIn": qSQL = qSQL & "40, "
+            Case "HMCOSOut": qSQL = qSQL & "42, "
+            Case "HMInOnly": qSQL = qSQL & "9, "
+            Case "HMInOut": qSQL = qSQL & "10, "
+            Case "HomeServices": qSQL = qSQL & "7, "
+            Case "MSCOS": qSQL = qSQL & "12, "
+            Case "MSSPC": qSQL = qSQL & "15, "
+            Case "NewCon": qSQL = qSQL & "32, "
+            Case "PGInOnly": qSQL = qSQL & "21, "
+            Case "PGInOut": qSQL = qSQL & "25, "
+            Case "SPC": qSQL = qSQL & "3, "
+            Case "SSECOS": qSQL = qSQL & "1, "
+            Case "HMDeemedIn": qSQL = qSQL & "14, "
+            Case "HMDeemedOut": qSQL = qSQL & "13, "
+            Case Else: qSQL = qSQL & "2, "
+            
+        End Select
 
-        qSQL = qSQL & "42, 0, 0, 0, 0, 0, " 'Old HABIT fields, setting to 0 as we don't capture anymore
-        'Addon, Email, Ebill, LandlineNo, MObileNo, DoB
+        qSQL = qSQL & "0, 0, 0, 0, 0, " 'Old HABIT fields, setting to 0 as we don't capture anymore
+        'Email, Ebill, LandlineNo, MObileNo, DoB
+
 
         'SalesChannel
         If DetectTrainingMode Then
@@ -245,7 +306,7 @@ Public Sub WorkSuiteSave_SQL(Optional LiveListened As Integer, Optional LiveList
             ElseIf Left(GetScript, 2) = "MS" Then
                 qSQL = qSQL & "11, "
                 
-            ElseIf Left(GetScript, 3) = "SSE" Or InStr(1, GetScript, "COSCom") > 0 Then
+            ElseIf Left(GetScript, 3) = "SSE" Or GetScript = "COSCom" Then
                 qSQL = qSQL & "9, "
                 
             End If
@@ -254,10 +315,26 @@ Public Sub WorkSuiteSave_SQL(Optional LiveListened As Integer, Optional LiveList
             qSQL = qSQL & "13, "
             
         ElseIf Left(GetScript, 2) = "HM" Then
-            qSQL = qSQL & "14, "
+        
+            If InStr(1, GetScript, "Deemed", vbTextCompare) > 0 Then
+                qSQL = qSQL & "24, "
+            
+            Else
+                qSQL = qSQL & "14, "
+                
+            End If
             
         ElseIf Left(GetScript, 2) = "PG" Then
             qSQL = qSQL & "23, "
+            
+        ElseIf GetScript = "NewCon" Then
+            qSQL = qSQL & "8, "
+            
+        ElseIf GetScript = "HomeServices" Then
+            qSQL = qSQL & "26, "
+            
+        Else
+            qSQL = qSQL & "9, "
             
         End If
         
@@ -363,17 +440,18 @@ Public Sub WorkSuiteSave_SQL(Optional LiveListened As Integer, Optional LiveList
             Case "SSE Southern Electric": qSQL = qSQL & "7, " 'SupplyBrand
             Case "SSE Swalec": qSQL = qSQL & "5, " 'SupplyBrand
             Case "M&S Energy": qSQL = qSQL & "3, " 'SupplyBrand
+            Case "Ebico": qSQL = qSQL & "10, " 'SupplyBrand
             Case Else: qSQL = qSQL & "4, "
             
         End Select
         
         'COTType = HM only
         Select Case GetScript
-            Case "HMInOnly", "PGInOnly"
+            Case "HMInOnly", "PGInOnly", "HMDeemedIn"
                 qSQL = qSQL & "1, "
-            Case "HMInOut", "PGInOut"
+            Case "HMInOut", "PGInOut", "HMDeemedOut"
                 qSQL = qSQL & "2, "
-            Case "HMOutOnly", "HMOutOnly"
+            Case "HMOutOnly", "PGOutOnly"
                 qSQL = qSQL & "3, "
             Case Else
                 qSQL = qSQL & "0, "
@@ -385,10 +463,37 @@ Public Sub WorkSuiteSave_SQL(Optional LiveListened As Integer, Optional LiveList
         qSQL = qSQL & "' '," 'TalkTariff
         qSQL = qSQL & "' ',"  'BroadbandTypeofSale
         qSQL = qSQL & "' ',"  'BroadbandTariff
-        qSQL = qSQL & "' ',"  'ShieldTypeOFSale
-        qSQL = qSQL & "' ',"  'ShieldTariff
-        qSQL = qSQL & "' ',"  'WiringTypeofSale
-        qSQL = qSQL & "' ',"  'WiringTariff
+        
+        If GetScript = "HomeServices" Or GetScript = "COSCom" Then
+            
+            If IsShield Then
+                qSQL = qSQL & "'Shield',"  'ShieldTypeOFSale
+                qSQL = qSQL & WrapString(.txtSTariff) & ","  'ShieldTariff
+                
+            Else
+                qSQL = qSQL & "' ',"  'ShieldTypeOFSale
+                qSQL = qSQL & "' ',"  'ShieldTariff
+            
+            End If
+            
+            If IsWiring Then
+                qSQL = qSQL & "'Wiring',"  'WiringTypeofSale
+                qSQL = qSQL & WrapString(.txtWTariff) & ","  'WiringTariff
+        
+            Else
+                qSQL = qSQL & "' ',"  'WiringTypeofSale
+                qSQL = qSQL & "' ',"  'WiringTariff
+            
+            End If
+            
+        Else
+            qSQL = qSQL & "' ',"  'ShieldTypeOFSale
+            qSQL = qSQL & "' ',"  'ShieldTariff
+            qSQL = qSQL & "' ',"  'WiringTypeofSale
+            qSQL = qSQL & "' ',"  'WiringTariff
+            
+        End If
+        
         qSQL = qSQL & "0, " 'MarketingConsent
 
         If .optMarkCon = 1 Then 'EmailMarketingConsent
@@ -400,9 +505,16 @@ Public Sub WorkSuiteSave_SQL(Optional LiveListened As Integer, Optional LiveList
         End If
         
         qSQL = qSQL & "0, 0, " 'date completed, dateassigned
+        
+        If GetScript = "HomeServices" Then
+              qSQL = qSQL & HSShield & ", " & HSWiring & ", "
+        
+        Else
+            qSQL = qSQL & "0, " 'NumberofShieldSales
+            qSQL = qSQL & "0, " 'NUmberofWiringSales
+          
+        End If
 
-        qSQL = qSQL & "0, " 'NumberofShieldSales
-        qSQL = qSQL & "0, " 'NUmberofWiringSales
         qSQL = qSQL & "0, " 'NumberoftalkSales
         qSQL = qSQL & "0, " 'NumberofBroadbandSales
         qSQL = qSQL & WrapString(.txtEmail) & ", " 'EConsentAddress
