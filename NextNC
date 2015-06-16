@@ -372,6 +372,10 @@ Sub NextNC()
                             .txtETariff = .subScript.Form.Controls("tglTariff" & .subScript.Form.optTariff).Caption
                                                                 
                         End If
+
+                            .txtEUsage = .txtElecUsage
+                            .txtEUsage2 = .txtElecUsage2
+                            .txtEUsage3 = .txtElecUsage3
                             
                         .subScript.Form.lblElecProj.Visible = True
                         .subScript.Form.lblElecProj.Caption = FillElecProjLabel
@@ -395,6 +399,8 @@ Sub NextNC()
                             .txtGTariff = .subScript.Form.Controls("tglTariff" & .subScript.Form.optTariff).Caption
                                 
                         End If
+                            
+                        .txtGUsage = .txtGasUsage
                           
                         .subScript.Form.lblGasProj.Visible = True
                         .subScript.Form.lblGasProj.Caption = FillGasProjLabel
@@ -490,10 +496,6 @@ Sub NextNC()
                       ShuffleHeaders 6, 7
                       .txtSection6 = BuildString
                       .subScript.SourceObject = "frm_Close"
-                      
-                      If SaleSaved = False Then .btnSave.Visible = True Else .btnSave.Visible = False
-                      If SaleSaved = False Then .imgSave.Visible = True Else .imgSave.Visible = False
-
                                           
                     End If
                     
@@ -519,10 +521,6 @@ Sub NextNC()
                     ShuffleHeaders 6, 7
                     .txtSection6 = BuildString
                     .subScript.SourceObject = "frm_Close"
-          
-                      If SaleSaved = False Then .btnSave.Visible = True Else .btnSave.Visible = False
-                      If SaleSaved = False Then .imgSave.Visible = True Else .imgSave.Visible = False
-          
                                         
                 End If
 '******************************************************************
